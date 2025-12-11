@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Container from "@/components/container";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeftIcon, CheckCircle2Icon, XCircleIcon } from "lucide-react";
+import { ArrowLeftIcon, CheckCircle2Icon } from "lucide-react";
 import Link from "next/link";
 import ChecklistItem from "./ChecklistItem";
 import { startAuditAction, submitAuditResultAction } from "./actions";
@@ -42,7 +42,7 @@ export default function AuditExecutionClient({ audit }: AuditExecutionClientProp
             };
         }) || [];
     
-    const [currentIndex, setCurrentIndex] = useState(initialResults.length > 0 ? initialResults.length : 0);
+    const [currentIndex, setCurrentIndex] = useState<number>(initialResults.length > 0 ? initialResults.length : 0);
     const [results, setResults] = useState<Array<{
         checkId: string;
         pass: boolean;

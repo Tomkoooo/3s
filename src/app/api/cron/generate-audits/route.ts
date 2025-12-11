@@ -5,12 +5,12 @@
  * Vercel Cron configuration needed in vercel.json
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { generateRecurringAudits } from '@/lib/audit-scheduler';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
     try {
         // Verify this is a cron request (Vercel sets this header)
         // const authHeader = request.headers.get('authorization');

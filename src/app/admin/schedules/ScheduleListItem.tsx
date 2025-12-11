@@ -6,12 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { PlayIcon, PauseIcon, TrashIcon, ClockIcon, UsersIcon, MapPinIcon } from "lucide-react";
 import { toggleScheduleActive, deleteSchedule } from "./actions";
 import { useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 export default function ScheduleListItem({ schedule }: { schedule: any }) {
     const [isPending, startTransition] = useTransition();
-    const router = useRouter();
 
     const handleToggle = () => {
         startTransition(async () => {

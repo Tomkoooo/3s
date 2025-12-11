@@ -1,10 +1,8 @@
 import Container from "@/components/container";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { PlusIcon, PlayIcon, PauseIcon, TrashIcon, CalendarIcon } from "lucide-react";
-import { getRecurringSchedules, toggleScheduleActive, deleteSchedule } from "./actions";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { PlusIcon, CalendarIcon } from "lucide-react";
+import { getRecurringSchedules } from "./actions";
 // We need a client component for the actions to be interactive without full page reload if we want smooth UX,
 // but for now I'll use a simple form/action approach or a client component wrapper.
 // Let's make a client component for the list item to handle interactions.

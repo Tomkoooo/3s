@@ -17,7 +17,6 @@ import { Card, CardContent } from "@/components/ui/card"
 // Check Card Component
 const CheckCard = ({ 
     check, 
-    siteId, 
     isPending, 
     onDelete 
 }: { 
@@ -27,7 +26,6 @@ const CheckCard = ({
         description?: string | null;
         referenceImage?: string | null;
     }, 
-    siteId: string, 
     isPending: boolean,
     onDelete: () => void 
 }) => {
@@ -95,7 +93,7 @@ const SelectedEditor = ({ site, level }: { site: ProcessedSite | null, level: nu
                 return "checks" // Level 2: mindig checks
         }
         return undefined
-    }, [level, children, checks, site])
+    }, [level, children, site])
 
     const nameChanged = useMemo(() => {
         return site?.name !== name
@@ -214,7 +212,6 @@ const SelectedEditor = ({ site, level }: { site: ProcessedSite | null, level: nu
                                 <CheckCard 
                                     key={check._id || `check-${index}`}
                                     check={check}
-                                    siteId={site._id}
                                     isPending={isPending}
                                     onDelete={async () => {
                                         if (!check._id) {

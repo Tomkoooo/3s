@@ -26,7 +26,6 @@ export default async function BreaksPage() {
     await deletePastBreaks();
 
     // Users only see their own breaks
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const breaks = (await Break.find({ userId: user.id }).sort({ start: -1 }).lean().exec()).map((breakDoc: any) => ({
         _id: breakDoc._id.toString(),
         start: breakDoc.start,

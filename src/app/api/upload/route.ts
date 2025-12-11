@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { connectDB, getUploadsBucket } from '@/lib/db';
 import { Readable } from 'stream';
-import { ObjectId } from 'mongodb';
 
 // File size limit: 10MB
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -98,7 +97,7 @@ export async function POST(request: NextRequest) {
 /**
  * GET /api/upload - List user's uploads
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
     try {
         // Auth check
         const currentUser = await getCurrentUser();

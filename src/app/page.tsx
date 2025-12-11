@@ -11,7 +11,6 @@ import {
   ClockIcon, 
   ListIcon, 
   TrendingUpIcon,
-  BarChartIcon,
   PlusIcon,
   UsersIcon,
   MapPinIcon,

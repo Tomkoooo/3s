@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import Site from '@/lib/db/models/Site';
 import User from '@/lib/db/models/User';
-import { scheduleAudits, createAuditsFromPreview } from '@/lib/audit-scheduler';
+import { scheduleAudits } from '@/lib/audit-scheduler';
 
 export async function GET() {
     await connectDB();

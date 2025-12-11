@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { UploadIcon, CheckCircleIcon, XIcon, ImageIcon } from "lucide-react";
+import { UploadIcon, CheckCircleIcon, XIcon } from "lucide-react";
 import { submitAuditFix } from "@/app/audits/[auditId]/actions";
 import { toast } from "sonner";
 import Image from "next/image";
@@ -81,11 +81,11 @@ export default function FixAuditItem({ auditId, checkId, currentFix }: Props) {
                         <p className="text-sm text-green-800 mt-1">{currentFix?.fixComment}</p>
                         {currentFix?.fixImage && (
                             <div className="mt-2 w-24 h-24 relative rounded border overflow-hidden">
-                                <img src={`/api/upload/${currentFix.fixImage}`} alt="Fix proof" className="w-full h-full object-cover" />
+                                <Image src={`/api/upload/${currentFix.fixImage}`} alt="Fix proof" fill className="object-cover" />
                             </div>
                         )}
                         <p className="text-xs text-green-700 mt-2">
-                             Rögzítve: {new Date(currentFix?.fixedAt!).toLocaleDateString('hu-HU')}
+                             Rögzítve: {new Date(currentFix!.fixedAt!).toLocaleDateString('hu-HU')}
                         </p>
                     </div>
                 </div>
@@ -125,7 +125,7 @@ export default function FixAuditItem({ auditId, checkId, currentFix }: Props) {
                     <div className="flex items-center gap-4">
                         {imageId ? (
                             <div className="relative w-24 h-24 rounded overflow-hidden border bg-white">
-                                <img src={`/api/upload/${imageId}`} alt="Uploaded" className="w-full h-full object-cover" />
+                                <Image src={`/api/upload/${imageId}`} alt="Uploaded" fill className="object-cover" />
                                 <button 
                                     onClick={() => setImageId(null)}
                                     className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5"

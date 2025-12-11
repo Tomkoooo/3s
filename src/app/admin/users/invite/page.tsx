@@ -46,7 +46,6 @@ export default async function UserInvite() {
                 <CardContent>
                     <InvitesTable
                         invites={invites.map((i) => ({
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
                             _id: (i._id as any).toString(),
                             role: i.role,
                             createdAt: i.createdAt instanceof Date ? i.createdAt.toISOString() : String(i.createdAt),

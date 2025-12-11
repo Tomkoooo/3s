@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import StatusBadge from "@/components/StatusBadge";
-import { CalendarIcon, ListIcon } from "lucide-react";
+import { ListIcon } from "lucide-react";
 
 // Set moment locale to Hungarian
 moment.locale("hu");

@@ -131,8 +131,8 @@ export default function CreateScheduleForm({ sites, auditors }: Props) {
                     <div className="p-4 border-b flex items-center justify-between bg-muted/50">
                         <Label>Területek ({selectedSites.length})</Label>
                         <div className="flex gap-2">
-                            <Button type="button" variant="ghost" size="xs" onClick={selectAllSites}>Mind</Button>
-                            <Button type="button" variant="ghost" size="xs" onClick={deselectSites}>Semmi</Button>
+                            <Button type="button" variant="ghost" size="sm" onClick={selectAllSites}>Mind</Button>
+                            <Button type="button" variant="ghost" size="sm" onClick={deselectSites}>Semmi</Button>
                         </div>
                     </div>
                     <div className="overflow-y-auto p-4 space-y-2 flex-1">
@@ -163,7 +163,7 @@ export default function CreateScheduleForm({ sites, auditors }: Props) {
                              <Button 
                                 type="button" 
                                 variant="ghost" 
-                                size="xs" 
+                                size="sm" 
                                 onClick={selectAllAuditors}
                                 className={selectedAuditors.length === 0 ? "bg-secondary" : ""}
                             >

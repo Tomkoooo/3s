@@ -15,7 +15,7 @@ export async function GET() {
         // 1. Setup Data
         // Find or create Test Auditor
         const testAuditorProps = { email: 'auditor@3sgp.hu', fullName: 'Test Auditor' };
-        let testAuditor = await User.findOne({ email: testAuditorProps.email });
+        const testAuditor = await User.findOne({ email: testAuditorProps.email });
         if (!testAuditor) throw new Error("Test Auditor not found (run setup-test-users first)");
         
         // Create Replacement Auditor

@@ -4,7 +4,7 @@
  * Sends audit-related emails to participants
  */
 
-import { sendEmail, sendBatchEmail } from './smtp';
+import { sendEmail } from './smtp';
 import { generateAuditIcs, type AuditEventData } from './ics-generator';
 import {
     renderAuditNotificationEmail,
@@ -12,8 +12,6 @@ import {
     type AuditNotificationData,
 } from './templates';
 import { connectDB } from '../db';
-import User from '../db/models/User';
-import Site from '../db/models/Site';
 
 /**
  * Send audit notification email to a single participant

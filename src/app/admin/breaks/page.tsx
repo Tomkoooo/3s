@@ -39,7 +39,6 @@ export default async function AdminBreaksPage() {
         .lean()
         .exec();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const clientBreaks: AdminClientBreak[] = breaks.map((breakDoc: any) => ({
         _id: breakDoc._id.toString(),
         start: breakDoc.start,

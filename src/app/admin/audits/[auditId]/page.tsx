@@ -1,11 +1,11 @@
 import Container from "@/components/container";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getAuditById, deleteAuditAction, getAuditors, getAuditableSites } from "../actions";
+import { getAuditById, getAuditors, getAuditableSites } from "../actions";
 import Link from "next/link";
-import { ArrowLeftIcon, CalendarIcon, ClockIcon, EditIcon, TrashIcon, UsersIcon } from "lucide-react";
+import { ArrowLeftIcon, CalendarIcon, ClockIcon, EditIcon, UsersIcon } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import DeleteAuditButton from "@/app/admin/audits/[auditId]/DeleteAuditButton";
 import AuditForm from "../AuditForm";
 
