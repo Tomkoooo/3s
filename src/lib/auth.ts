@@ -11,7 +11,12 @@ export const SESSION_COOKIE_NAME = 'session';
 export const SESSION_COOKIE_MAX_AGE_MS = 2 * 60 * 60 * 1000;
 
 // Secure cookies in production (auto-detected by Next.js)
-const IS_SECURE = process.env.NODE_ENV === 'production';
+// Secure cookies helper
+const isSecureCookie = () => {
+    if (process.env.FORCE_SECURE_COOKIES === 'true') return true;
+    if (process.env.FORCE_SECURE_COOKIES === 'false') return false;
+    return process.env.NODE_ENV === 'production';
+};
 
 // Cache for admin check (1 minute TTL)
 let adminCheckCache: { value: boolean, timestamp: number } | null = null;
@@ -62,7 +67,7 @@ export const registerUser = async (email: string, password: string, role: string
             name: SESSION_COOKIE_NAME,
             value: token,
             httpOnly: true,
-            secure: IS_SECURE,
+            secure: isSecureCookie(),
             sameSite: 'lax',
             maxAge: SESSION_COOKIE_MAX_AGE_MS,
             path: '/',
@@ -198,7 +203,7 @@ export const signIn = async (email: string, password: string) => {
             name: SESSION_COOKIE_NAME,
             value: token,
             httpOnly: true,
-            secure: IS_SECURE,
+            secure: isSecureCookie(),
             sameSite: 'lax',
             maxAge: SESSION_COOKIE_MAX_AGE_MS,
             path: '/',
@@ -229,7 +234,7 @@ export const signIn = async (email: string, password: string) => {
         name: SESSION_COOKIE_NAME,
         value: token,
         httpOnly: true,
-        secure: IS_SECURE,
+        secure: isSecureCookie(),
         sameSite: 'lax',
         maxAge: SESSION_COOKIE_MAX_AGE_MS,
         path: '/',
