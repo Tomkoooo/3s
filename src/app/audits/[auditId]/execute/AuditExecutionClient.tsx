@@ -38,7 +38,7 @@ export default function AuditExecutionClient({ audit }: AuditExecutionClientProp
                 checkId: r.check._id || r.check,
                 pass: resultValue,
                 comment: r.comment,
-                imageId: r.image,
+                imageIds: r.images || (r.image ? [r.image] : []),
             };
         }) || [];
     
@@ -47,7 +47,7 @@ export default function AuditExecutionClient({ audit }: AuditExecutionClientProp
         checkId: string;
         pass: boolean;
         comment?: string;
-        imageId?: string;
+        imageIds?: string[];
     }>>(initialResults);
 
     const totalChecks = audit.result?.length || 0;
@@ -64,13 +64,13 @@ export default function AuditExecutionClient({ audit }: AuditExecutionClientProp
         }
     };
 
-    const handleCheckResult = (checkId: string, pass: boolean, comment?: string, imageId?: string) => {
+    const handleCheckResult = (checkId: string, pass: boolean, comment?: string, imageIds?: string[]) => {
         setResults(prev => {
             const existing = prev.find(r => r.checkId === checkId);
             if (existing) {
-                return prev.map(r => r.checkId === checkId ? { checkId, pass, comment, imageId } : r);
+                return prev.map(r => r.checkId === checkId ? { checkId, pass, comment, imageIds } : r);
             }
-            return [...prev, { checkId, pass, comment, imageId }];
+            return [...prev, { checkId, pass, comment, imageIds }];
         });
 
         // Auto-advance ha OK (NOK esetén marad, mert komment + kép kell)

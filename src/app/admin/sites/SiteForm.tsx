@@ -37,12 +37,16 @@ export default function SiteForm({
     useEffect(() => {
         if (state.success) {
             toast.success(state.message || 'Művelet sikeres');
-            router.push('/admin/sites');
+            if (mode === 'create' && (state as any).siteId) {
+                router.push(`/admin/sites?selected=${(state as any).siteId}`);
+            } else {
+                router.push('/admin/sites');
+            }
             router.refresh();
         } else if (state.message && !state.success) {
             toast.error(state.message);
         }
-    }, [state, router]);
+    }, [state, router, mode]);
 
     return (
         <form action={formAction} className="flex flex-col gap-4">

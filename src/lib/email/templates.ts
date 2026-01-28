@@ -34,6 +34,17 @@ export type DailySummaryData = {
 };
 
 /**
+ * Invite email data
+ */
+export type InviteEmailData = {
+    recipientEmail: string;
+    role: string;
+    inviteUrl: string;
+    expiresAt: string;
+    comment?: string;
+};
+
+/**
  * Base email layout
  */
 function emailLayout(content: string): string {
@@ -382,6 +393,94 @@ ${todaySection}
 ${tomorrowSection}
 
 Jó munkát kívánunk az ellenőrzésekhez!
+
+---
+Ez egy automatikus értesítő email a 3S Ellenőrző Rendszerből.
+    `.trim();
+}
+
+/**
+ * Invite email template
+ */
+export function renderInviteEmail(data: InviteEmailData): string {
+    const roleNames = {
+        admin: 'Adminisztrátor',
+        auditor: 'Auditor',
+        fixer: 'Javító (Karbantartó)',
+    } as any;
+
+    const roleName = roleNames[data.role] || data.role;
+
+    const content = `
+        <div class="content">
+            <h2>Meghívó a 3S Ellenőrző Rendszerbe</h2>
+            <p>Üdvözlünk!</p>
+            <p>
+                Meghívtak a 3S Ellenőrző Rendszer használatára <strong>${roleName}</strong> szerepkörben.
+            </p>
+            
+            ${data.comment ? `
+            <div class="info-box">
+                <strong>Megjegyzés</strong>
+                <span>${data.comment}</span>
+            </div>
+            ` : ''}
+            
+            <div class="info-box">
+                <strong>Szerepkör</strong>
+                <span>${roleName}</span>
+            </div>
+            
+            <div class="info-box">
+                <strong>Lejárat</strong>
+                <span>${new Date(data.expiresAt).toLocaleString('hu-HU')}</span>
+            </div>
+            
+            <p>
+                A regisztrációhoz és a fiókod aktiválásához kattints az alábbi gombra:
+            </p>
+            
+            <center>
+                <a href="${data.inviteUrl}" class="button">Regisztráció és Aktiválás</a>
+            </center>
+            
+            <p style="font-size: 13px; color: #666; margin-top: 20px;">
+                Ezt a linket csak egyszer tudod felhasználni. Amennyiben nem te kérted a hozzáférést, kérjük hagyd figyelmen kívül ezt az üzenetet.
+            </p>
+        </div>
+    `;
+
+    return emailLayout(content);
+}
+
+/**
+ * Plain text version of invite email
+ */
+export function renderInviteText(data: InviteEmailData): string {
+    const roleNames = {
+        admin: 'Adminisztrátor',
+        auditor: 'Auditor',
+        fixer: 'Javító (Karbantartó)',
+    } as any;
+
+    const roleName = roleNames[data.role] || data.role;
+
+    return `
+3S Ellenőrző Rendszer
+Meghívó a rendszerbe
+
+Üdvözlünk!
+
+Meghívtak a 3S Ellenőrző Rendszer használatára ${roleName} szerepkörben.
+
+Szerepkör: ${roleName}
+Lejárat: ${new Date(data.expiresAt).toLocaleString('hu-HU')}
+${data.comment ? `\nMegjegyzés: ${data.comment}` : ''}
+
+A regisztrációhoz és a fiókod aktiválásához látogass el az alábbi linkre:
+${data.inviteUrl}
+
+Ezt a linket csak egyszer tudod felhasználni.
 
 ---
 Ez egy automatikus értesítő email a 3S Ellenőrző Rendszerből.

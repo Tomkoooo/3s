@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { deleteSiteAction, updateSiteAction } from "./actions"
 import { deleteCheckAction, reorderChecksAction } from "./checks/actions"
 import { toast } from "sonner"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 
@@ -374,7 +374,10 @@ export default function SitesEditor({
 }: {
     sites: ProcessedSite[]
 }) {
+    const searchParams = useSearchParams();
+    const selectedParam = searchParams.get('selected');
     const [selectedSite, setSelectedSite] = useState<ProcessedSite | null>(null)
+    const router = useRouter()
 
     const selectedSiteLevel = useMemo(() => {
         if (!selectedSite) return 0;
@@ -414,6 +417,16 @@ export default function SitesEditor({
         sites.forEach(addToMap);
         return map;
     }, [sites]);
+
+    // Handle auto-selection from URL
+    useEffect(() => {
+        if (selectedParam && !selectedSite) {
+            const site = siteMap.get(selectedParam);
+            if (site) {
+                setSelectedSite(site);
+            }
+        }
+    }, [selectedParam, siteMap, selectedSite]);
 
     return (
         <div className="flex flex-row gap-4 flex-wrap-reverse">

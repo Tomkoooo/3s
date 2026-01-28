@@ -9,6 +9,7 @@ import { revalidatePath } from "next/cache";
 export type SiteFormState = {
     success: boolean;
     message?: string;
+    siteId?: string;
     fieldErrors?: {
         name?: string[];
         level?: string[];
@@ -90,7 +91,7 @@ export async function createSiteAction(
         }
 
         revalidatePath('/admin/sites');
-        return { success: true, message: 'Terület sikeresen létrehozva' };
+        return { success: true, message: 'Terület sikeresen létrehozva', siteId: newSite._id.toString() };
     } catch (error) {
         console.error('Create site error:', error);
         return {

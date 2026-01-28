@@ -4,6 +4,7 @@ import { generateInvite, getCurrentUser } from "@/lib/auth";
 import { connectDB } from "@/lib/db";
 import Invite from "@/lib/db/models/Invite";
 import { headers } from "next/headers";
+import { sendInviteEmail } from "@/lib/email/user-email";
 
 export type InviteFormState = {
     success: boolean;
@@ -13,7 +14,7 @@ export type InviteFormState = {
     expiresAt?: string;
 }
 
-export async function generateInviteAction(role: string, comment: string): Promise<InviteFormState> {
+export async function generateInviteAction(role: string, comment: string, email?: string): Promise<InviteFormState> {
     const currentUser = await getCurrentUser();
     if (!currentUser || currentUser.role !== 'admin') {
         return { success: false, message: 'Nincs jogosultság meghívó létrehozásához.' };
@@ -32,12 +33,36 @@ export async function generateInviteAction(role: string, comment: string): Promi
 
     const invite = await generateInvite(role, comment);
     const inviteId = String(invite._id);
+    const inviteUrl = `${baseUrl}/invite/${inviteId}`;
+
+    // Ha megadtak email címet, küldjük ki a meghívót
+    if (email && email.trim()) {
+        const emailResult = await sendInviteEmail({
+            recipientEmail: email,
+            role: role,
+            inviteUrl: inviteUrl,
+            expiresAt: invite.expiresAt.toISOString(),
+            comment: comment
+        });
+
+        if (!emailResult.success) {
+            console.error('[INVITE EMAIL SEND FAILED]', emailResult.error);
+            return {
+                success: true,
+                inviteId,
+                inviteUrl,
+                expiresAt: invite.expiresAt.toISOString(),
+                message: `Meghívó létrehozva, de az email küldése sikertelen: ${emailResult.error}`
+            };
+        }
+    }
 
     return {
         success: true,
         inviteId,
-        inviteUrl: `${baseUrl}/invite/${inviteId}`,
+        inviteUrl,
         expiresAt: invite.expiresAt.toISOString(),
+        message: email ? 'Meghívó létrehozva és kiküldve emailben.' : 'Meghívó létrehozva.'
     };
 }
 

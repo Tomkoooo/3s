@@ -47,7 +47,7 @@ export default async function UserAuditDetailsPage({
                     </Button>
                 </Link>
 
-                {canExecute && (isToday || isInProgress) && (
+                {canExecute && (
                     <Link href={`/audits/${auditId}/execute`}>
                         <Button>
                             <PlayIcon className="w-4 h-4 mr-2" />
@@ -205,7 +205,7 @@ export default async function UserAuditDetailsPage({
                                         ? 'Az ellenőrzés folyamatban van.'
                                         : 'Nincsenek ellenőrzési eredmények.'}
                                 </p>
-                                {canExecute && (isToday || isInProgress) && (
+                                {canExecute && (
                                     <Link href={`/audits/${auditId}/execute`}>
                                         <Button>
                                             <PlayIcon className="w-4 h-4 mr-2" />
@@ -218,10 +218,10 @@ export default async function UserAuditDetailsPage({
                     </div>
 
                     {/* Info box scheduled esetén */}
-                    {audit.status === 'scheduled' && !isToday && (
+                    {audit.status === 'scheduled' && (
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                             <p className="text-sm text-blue-800">
-                                Az ellenőrzés {formattedDate}-ra van ütemezve. Az "Ellenőrzés indítása" gomb a megadott napon lesz elérhető.
+                                Az ellenőrzés {formattedDate}-ra van ütemezve, de bármikor elindítható.
                             </p>
                         </div>
                     )}

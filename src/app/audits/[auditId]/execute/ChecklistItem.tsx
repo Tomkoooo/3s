@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { CheckCircle2Icon, XCircleIcon } from "lucide-react";
-import ImageUpload from "@/components/ImageUpload";
+import MultiImageUpload from "@/components/MultiImageUpload";
 
 type ChecklistItemProps = {
     check: {
@@ -19,33 +19,33 @@ type ChecklistItemProps = {
         checkId: string;
         pass: boolean;
         comment?: string;
-        imageId?: string;
+        imageIds?: string[];
     };
-    onResult: (checkId: string, pass: boolean, comment?: string, imageId?: string) => void;
+    onResult: (checkId: string, pass: boolean, comment?: string, imageIds?: string[]) => void;
     auditId: string;
 };
 
 export default function ChecklistItem({ check, result, onResult }: ChecklistItemProps) {
     const [pass, setPass] = useState<boolean | null>(result?.pass ?? null);
     const [comment, setComment] = useState(result?.comment || '');
-    const [imageId, setImageId] = useState(result?.imageId || '');
+    const [imageIds, setImageIds] = useState<string[]>(result?.imageIds || []);
 
     const handlePassChange = (newPass: boolean) => {
         setPass(newPass);
-        onResult(check._id, newPass, comment, imageId);
+        onResult(check._id, newPass, comment, imageIds);
     };
 
     const handleCommentChange = (newComment: string) => {
         setComment(newComment);
         if (pass !== null) {
-            onResult(check._id, pass, newComment, imageId);
+            onResult(check._id, pass, newComment, imageIds);
         }
     };
 
-    const handleImageUpload = (newImageId: string) => {
-        setImageId(newImageId);
+    const handleImageUpload = (newImageIds: string[]) => {
+        setImageIds(newImageIds);
         if (pass !== null) {
-            onResult(check._id, pass, comment, newImageId);
+            onResult(check._id, pass, comment, newImageIds);
         }
     };
 
@@ -125,12 +125,13 @@ export default function ChecklistItem({ check, result, onResult }: ChecklistItem
 
                         <div>
                             <Label>
-                                Fotó feltöltése <span className="text-muted-foreground">(opcionális)</span>
+                                Fotók feltöltése <span className="text-muted-foreground">(opcionális)</span>
                             </Label>
                             <div className="mt-2">
-                                <ImageUpload
-                                    onUploadComplete={handleImageUpload}
-                                    existingImageId={imageId}
+                                <MultiImageUpload
+                                    onImagesChange={handleImageUpload}
+                                    existingImageIds={imageIds}
+                                    maxImages={100}
                                 />
                             </div>
                         </div>
