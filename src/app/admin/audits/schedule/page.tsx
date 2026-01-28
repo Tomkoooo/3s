@@ -28,7 +28,9 @@ import Link from "next/link";
 type Site = {
     _id: string;
     name: string;
+    fullPath?: string;
     checksCount: number;
+    isParent?: boolean;
 };
 
 type Auditor = {
@@ -323,27 +325,72 @@ export default function ScheduleAuditsPage() {
                         <div className="space-y-2 max-h-64 overflow-y-auto border rounded-lg p-2">
                             {sites.length === 0 ? (
                                 <p className="text-sm text-muted-foreground p-2">
-                                    Nincsenek ütemezh audits területek
+                                    Nincsenek ütemezhető területek
                                 </p>
                             ) : (
-                                sites.map(site => (
-                                    <div key={site._id} className="flex items-center gap-2">
-                                        <Checkbox
-                                            id={`site-${site._id}`}
-                                            checked={selectedSites.includes(site._id)}
-                                            onCheckedChange={() => toggleSite(site._id)}
-                                        />
-                                        <label
-                                            htmlFor={`site-${site._id}`}
-                                            className="text-sm cursor-pointer flex-1"
-                                        >
-                                            {site.name}
-                                            <span className="text-muted-foreground ml-1">
-                                                ({site.checksCount} pont)
-                                            </span>
-                                        </label>
-                                    </div>
-                                ))
+                                (() => {
+                                    // Group sites by parent
+                                    const topLevel: any[] = [];
+                                    const childrenMap = new Map<string, any[]>();
+                                    
+                                    sites.forEach(site => {
+                                        const pathParts = (site.fullPath || site.name).split(' > ');
+                                        if (pathParts.length === 1) {
+                                            topLevel.push(site);
+                                        } else {
+                                            const parentName = pathParts[0];
+                                            if (!childrenMap.has(parentName)) {
+                                                childrenMap.set(parentName, []);
+                                            }
+                                            childrenMap.get(parentName)!.push(site);
+                                        }
+                                    });
+                                    
+                                    return topLevel.map(parentSite => {
+                                        const parentName = (parentSite.fullPath || parentSite.name).split(' > ')[0];
+                                        const children = childrenMap.get(parentName) || [];
+                                        
+                                        return (
+                                            <div key={parentSite._id} className="space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                    <Checkbox
+                                                        id={`site-${parentSite._id}`}
+                                                        checked={selectedSites.includes(parentSite._id)}
+                                                        onCheckedChange={() => toggleSite(parentSite._id)}
+                                                    />
+                                                    <label
+                                                        htmlFor={`site-${parentSite._id}`}
+                                                        className="text-sm cursor-pointer flex-1 font-semibold flex items-center gap-1"
+                                                    >
+                                                        {parentSite.isParent ? '📁' : '📄'} {parentSite.name}
+                                                        <span className="text-xs text-muted-foreground font-normal">
+                                                            ({parentSite.isParent ? `${parentSite.checksCount} alterület` : `${parentSite.checksCount} pont`})
+                                                        </span>
+                                                    </label>
+                                                </div>
+                                                
+                                                {children.map(child => (
+                                                    <div key={child._id} className="flex items-center gap-2 ml-6 pl-2 border-l-2 border-muted">
+                                                        <Checkbox
+                                                            id={`site-${child._id}`}
+                                                            checked={selectedSites.includes(child._id)}
+                                                            onCheckedChange={() => toggleSite(child._id)}
+                                                        />
+                                                        <label
+                                                            htmlFor={`site-${child._id}`}
+                                                            className="text-sm cursor-pointer flex-1 text-muted-foreground"
+                                                        >
+                                                            └ {child.fullPath?.split(' > ').pop() || child.name}
+                                                            <span className="text-xs ml-1">
+                                                                ({child.checksCount} pont)
+                                                            </span>
+                                                        </label>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        );
+                                    });
+                                })()
                             )}
                         </div>
 

@@ -34,52 +34,120 @@ export async function getSchedulableSites() {
 
         // Get all sites (not just level 2) - we'll filter by checks
         const allSites = await Site.find({})
-            .select('_id name level checks')
+            .select('_id name level checks parentId children')
             .lean()
             .exec();
 
         console.log(`[getSchedulableSites] Found ${allSites.length} total sites`);
 
-        // Filter sites that have checks and verify checks exist
-        const sitesWithChecks = [];
+        // Build a map of sites with checks
+        const sitesWithChecksMap = new Map<string, any>();
+        
         for (const site of allSites) {
             console.log(`[getSchedulableSites] Site: ${site.name} (level: ${site.level}), checks array:`, site.checks);
-            console.log(`[getSchedulableSites] Site: ${site.name}, checks array length: ${site.checks?.length || 0}, checks type:`, typeof site.checks);
             
             if (site.checks && Array.isArray(site.checks) && site.checks.length > 0) {
                 // Verify checks actually exist in database
                 const checkIds = site.checks.map((id: any) => {
-                    // Handle both ObjectId and string formats
                     if (typeof id === 'object' && id.toString) {
                         return id.toString();
                     }
                     return String(id);
                 });
-                console.log(`[getSchedulableSites] Checking ${checkIds.length} check IDs for site ${site.name}:`, checkIds);
                 
                 const existingChecks = await Check.find({ _id: { $in: checkIds } })
                     .select('_id')
                     .lean()
                     .exec();
                 
-                console.log(`[getSchedulableSites] Found ${existingChecks.length} existing checks for site ${site.name} (level ${site.level})`);
+                console.log(`[getSchedulableSites] Found ${existingChecks.length} existing checks for site ${site.name}`);
                 
                 if (existingChecks.length > 0) {
-                    sitesWithChecks.push({
-                        _id: site._id.toString(),
-                        name: site.name,
+                    sitesWithChecksMap.set(site._id.toString(), {
+                        ...site,
                         checksCount: existingChecks.length,
                     });
-                } else {
-                    console.log(`[getSchedulableSites] WARNING: Site ${site.name} has ${checkIds.length} check IDs but none exist in database!`);
                 }
-            } else {
-                console.log(`[getSchedulableSites] Site ${site.name} (level ${site.level}) has no checks or empty checks array`);
             }
         }
 
-        console.log(`[getSchedulableSites] Returning ${sitesWithChecks.length} sites with checks`);
-        return sitesWithChecks;
+        // Now include parent sites that have children with checks
+        const schedulableSites: any[] = [];
+        const addedSiteIds = new Set<string>();
+        
+        for (const site of allSites) {
+            const siteId = site._id.toString();
+            
+            // Check if this site has checks directly
+            if (sitesWithChecksMap.has(siteId)) {
+                const siteWithChecks = sitesWithChecksMap.get(siteId);
+                if (!addedSiteIds.has(siteId)) {
+                    schedulableSites.push({
+                        _id: siteId,
+                        name: site.name,
+                        parentId: site.parentId,
+                        checksCount: siteWithChecks.checksCount,
+                        hasDirectChecks: true,
+                    });
+                    addedSiteIds.add(siteId);
+                }
+            }
+            
+            // Check if this site has children with checks
+            if (site.children && Array.isArray(site.children) && site.children.length > 0) {
+                let childrenWithChecksCount = 0;
+                
+                for (const childId of site.children) {
+                    const childIdStr = typeof childId === 'object' ? childId.toString() : String(childId);
+                    if (sitesWithChecksMap.has(childIdStr)) {
+                        childrenWithChecksCount++;
+                    }
+                }
+                
+                if (childrenWithChecksCount > 0 && !addedSiteIds.has(siteId)) {
+                    schedulableSites.push({
+                        _id: siteId,
+                        name: site.name,
+                        parentId: site.parentId,
+                        checksCount: childrenWithChecksCount,
+                        hasDirectChecks: false,
+                        isParent: true,
+                    });
+                    addedSiteIds.add(siteId);
+                }
+            }
+        }
+
+        console.log(`[getSchedulableSites] Returning ${schedulableSites.length} schedulable sites (including parents)`);
+        
+        // Build hierarchy paths
+        const processedSites = await Promise.all(
+            schedulableSites.map(async (site: any) => {
+                let fullPath = site.name;
+                let currentParentId = site.parentId;
+
+                // Traverse up to collect parent names
+                while (currentParentId) {
+                    const parent = await Site.findById(currentParentId).select('name parentId').lean();
+                    if (parent) {
+                        fullPath = `${parent.name} > ${fullPath}`;
+                        currentParentId = parent.parentId;
+                    } else {
+                        break;
+                    }
+                }
+
+                return {
+                    _id: site._id,
+                    name: site.name,
+                    fullPath,
+                    checksCount: site.checksCount,
+                    isParent: site.isParent || false,
+                };
+            })
+        );
+
+        return processedSites;
     } catch (error) {
         console.error('Get schedulable sites error:', error);
         return [];

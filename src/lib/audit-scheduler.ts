@@ -190,6 +190,18 @@ export function generateDates(
 }
 
 /**
+ * Shuffle array helper for randomization
+ */
+function shuffleArray<T>(array: T[]): T[] {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+}
+
+/**
  * Generate audit preview
  * Does NOT create audits, only returns a preview
  */
@@ -201,13 +213,77 @@ export async function generateAuditPreview(
     const previews: AuditPreview[] = [];
     const conflicts: string[] = [];
 
-    // Get all sites
-    const sites = await Site.find({ _id: { $in: config.siteIds } })
-        .select('_id name')
+    // Get all selected sites with their children
+    const selectedSites = await Site.find({ _id: { $in: config.siteIds } })
+        .select('_id name children checks')
         .lean();
 
-    if (sites.length === 0) {
+    if (selectedSites.length === 0) {
         return { previews, conflicts: ['Nincsenek kiválasztott területek'] };
+    }
+
+    // Import Check model
+    await import('@/lib/db/models/Check');
+    const Check = (await import('@/lib/db/models/Check')).default;
+
+    // Recursive function to get all descendant sites with checks
+    async function getAllDescendantsWithChecks(siteId: any): Promise<Array<{ _id: any; name: string }>> {
+        const results: Array<{ _id: any; name: string }> = [];
+        
+        // Get this site
+        const site = await Site.findById(siteId)
+            .select('_id name checks children')
+            .lean();
+        
+        if (!site) return results;
+        
+        // Check if this site has checks directly
+        if (site.checks && Array.isArray(site.checks) && site.checks.length > 0) {
+            const existingChecks = await Check.find({ _id: { $in: site.checks } })
+                .select('_id')
+                .lean()
+                .exec();
+            
+            if (existingChecks.length > 0) {
+                results.push({
+                    _id: site._id,
+                    name: site.name,
+                });
+            }
+        }
+        
+        // Recursively process all children
+        if (site.children && Array.isArray(site.children) && site.children.length > 0) {
+            for (const childId of site.children) {
+                const childDescendants = await getAllDescendantsWithChecks(childId);
+                results.push(...childDescendants);
+            }
+        }
+        
+        return results;
+    }
+
+    // Expand parent sites to include all their descendants with checks (recursive)
+    const sitesToSchedule: Array<{ _id: any; name: string }> = [];
+    const processedIds = new Set<string>();
+
+    for (const site of selectedSites) {
+        const siteId = site._id.toString();
+        
+        // Get all descendants with checks for this site (recursive)
+        const descendants = await getAllDescendantsWithChecks(site._id);
+        
+        for (const descendant of descendants) {
+            const descendantId = descendant._id.toString();
+            if (!processedIds.has(descendantId)) {
+                sitesToSchedule.push(descendant);
+                processedIds.add(descendantId);
+            }
+        }
+    }
+
+    if (sitesToSchedule.length === 0) {
+        return { previews, conflicts: ['Egyik kiválasztott terület sem ütemezhető'] };
     }
 
     // Generate dates based on frequency
@@ -230,6 +306,9 @@ export async function generateAuditPreview(
             availableAuditors = filtered;
         }
 
+        // RANDOMIZE auditor order for this date to prevent repetitive pairings
+        availableAuditors = shuffleArray(availableAuditors);
+
         // Check if we have enough auditors
         if (availableAuditors.length < config.auditorsPerAudit) {
             conflicts.push(
@@ -240,11 +319,11 @@ export async function generateAuditPreview(
             continue;
         }
 
-        // Create rotation
+        // Create rotation with shuffled auditors
         const rotation = new AuditorRotation(availableAuditors);
 
         // For each site, assign auditors
-        for (const site of sites) {
+        for (const site of sitesToSchedule) {
             const auditors = rotation.next(config.auditorsPerAudit);
 
             if (auditors.length < config.auditorsPerAudit) {
@@ -397,6 +476,18 @@ export async function createAuditsFromPreview(
                 )}: Hiba a létrehozás során: ${error instanceof Error ? error.message : String(error)}`
             );
             skipped++;
+        }
+    }
+
+    // Send email notifications to participants
+    if (createdAudits.length > 0) {
+        try {
+            const { sendBulkAuditNotifications } = await import('@/lib/email/audit-email');
+            const emailResult = await sendBulkAuditNotifications(createdAudits);
+            console.log(`[createAuditsFromPreview] Emails sent: ${emailResult.totalSent}, failed: ${emailResult.totalFailed}`);
+        } catch (emailError) {
+            console.error('[createAuditsFromPreview] Email error:', emailError);
+            // Don't fail the whole process if emails fail
         }
     }
 

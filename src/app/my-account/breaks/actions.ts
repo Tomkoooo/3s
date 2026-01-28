@@ -218,11 +218,13 @@ export async function getBreakById(breakId: string) {
             return null;
         }
 
+        const breakData: any = breakDoc;
+
         return {
-            _id: (breakDoc as BreakDocument)._id.toString(),
-            start: (breakDoc as BreakDocument).start,
-            end: (breakDoc as BreakDocument).end,
-            reason: (breakDoc as BreakDocument).reason,
+            _id: breakData._id.toString(),
+            start: breakData.start,
+            end: breakData.end,
+            reason: breakData.reason,
         };
     } catch {
         return null;
@@ -409,11 +411,13 @@ export async function getBreakByIdForUser(breakId: string, targetUserId: string)
             return null;
         }
 
+        const breakData: any = breakDoc;
+
         return {
-            _id: (breakDoc as BreakDocument)._id.toString(),
-            start: (breakDoc as BreakDocument).start,
-            end: (breakDoc as BreakDocument).end,
-            reason: (breakDoc as BreakDocument).reason,
+            _id: breakData._id.toString(),
+            start: breakData.start,
+            end: breakData.end,
+            reason: breakData.reason,
         };
     } catch {
         return null;

@@ -35,6 +35,13 @@ export async function createCheckAction(
         const rawText = formData.get('text');
         const rawDescription = formData.get('description');
         const rawReferenceImage = formData.get('referenceImage');
+        const rawReferenceImages = formData.get('referenceImages');
+
+        // Parse referenceImages if provided (comma-separated string of IDs)
+        let referenceImagesArray: string[] = [];
+        if (rawReferenceImages && typeof rawReferenceImages === 'string') {
+            referenceImagesArray = rawReferenceImages.split(',').filter(id => id.trim());
+        }
 
         const parsed = checkSchema.safeParse({
             text: rawText,
@@ -74,6 +81,7 @@ export async function createCheckAction(
             text,
             description: description || null,
             referenceImage: referenceImage || null,
+            referenceImages: referenceImagesArray.length > 0 ? referenceImagesArray : undefined,
         });
 
         // Check hozzáadása a site-hoz
@@ -109,6 +117,13 @@ export async function updateCheckAction(
 
         const rawText = formData.get('text');
         const rawDescription = formData.get('description');
+        const rawReferenceImages = formData.get('referenceImages');
+
+        // Parse referenceImages if provided (comma-separated string of IDs)
+        let referenceImagesArray: string[] | undefined = undefined;
+        if (rawReferenceImages && typeof rawReferenceImages === 'string') {
+            referenceImagesArray = rawReferenceImages.split(',').filter(id => id.trim());
+        }
 
         const parsed = checkSchema.safeParse({
             text: rawText,
@@ -137,6 +152,9 @@ export async function updateCheckAction(
 
         check.text = text;
         check.description = description || null;
+        if (referenceImagesArray !== undefined) {
+            check.referenceImages = referenceImagesArray.length > 0 ? referenceImagesArray : undefined;
+        }
         await check.save();
 
         revalidatePath('/admin/sites');
@@ -228,10 +246,80 @@ export async function getChecksBySiteId(siteId: string) {
             text: check.text,
             description: check.description || null,
             referenceImage: check.referenceImage?.toString() || null,
+            referenceImages: check.referenceImages?.map((id: any) => id.toString()) || [],
         }));
     } catch (error) {
         console.error('Get checks error:', error);
         return [];
+    }
+}
+
+/**
+ * Ellenőrzési pontok sorrendjének módosítása
+ */
+export async function reorderChecksAction(
+    siteId: string,
+    checkIds: string[]
+): Promise<CheckFormState> {
+    try {
+        // Auth check
+        const currentUser = await getCurrentUser();
+        if (!currentUser || currentUser.role !== 'admin') {
+            return { success: false, message: 'Nincs jogosultságod ehhez a művelethez' };
+        }
+
+        await connectDB();
+
+        const site = await Site.findById(siteId);
+        if (!site) {
+            return { success: false, message: 'A terület nem található' };
+        }
+
+        // Convert checkIds to ObjectIds
+        const objectIds = checkIds.map(id => new ObjectId(id)) as any;
+
+        // Update the site's checks array with the new order
+        site.checks = objectIds;
+        await site.save();
+
+        revalidatePath('/admin/sites');
+        return { success: true, message: 'Sorrend sikeresen módosítva' };
+    } catch (error) {
+        console.error('Reorder checks error:', error);
+        return {
+            success: false,
+            message: error instanceof Error ? error.message : 'Ismeretlen hiba történt',
+        };
+    }
+}
+
+/**
+ * Get a single check by ID
+ */
+export async function getCheckById(checkId: string) {
+    try {
+        await connectDB();
+        
+        const check = await Check.findById(checkId)
+            .lean()
+            .exec();
+        
+        if (!check) {
+            return null;
+        }
+
+        const checkData: any = check;
+
+        return {
+            _id: checkData._id.toString(),
+            text: checkData.text,
+            description: checkData.description || null,
+            referenceImage: checkData.referenceImage?.toString() || null,
+            referenceImages: checkData.referenceImages?.map((id: any) => id.toString()) || [],
+        };
+    } catch (error) {
+        console.error('Get check by id error:', error);
+        return null;
     }
 }
 

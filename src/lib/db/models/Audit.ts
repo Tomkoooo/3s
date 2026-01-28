@@ -4,12 +4,14 @@ export type IAuditResult = {
     check: ObjectId;
     result: boolean;
     comment?: string;
-    image?: ObjectId;
+    image?: ObjectId; // Deprecated
+    images?: ObjectId[];
     durationMinutes?: number;
     fixedBy?: ObjectId;
     fixedAt?: Date;
     fixComment?: string;
-    fixImage?: ObjectId;
+    fixImage?: ObjectId; // Deprecated
+    fixImages?: ObjectId[];
 }
 
 export const auditResultSchema = new Schema<IAuditResult>({
@@ -31,6 +33,11 @@ export const auditResultSchema = new Schema<IAuditResult>({
         ref: "Upload", // Model név string-ként
         required: false, // TEMPORARY FOR TESTING
     },
+    images: {
+        type: [Schema.Types.ObjectId],
+        ref: "Upload",
+        required: false
+    },
     // Fixer fields
     fixedBy: {
         type: Schema.Types.ObjectId,
@@ -45,6 +52,11 @@ export const auditResultSchema = new Schema<IAuditResult>({
     fixImage: {
         type: Schema.Types.ObjectId, // GridFS ID
         ref: "Upload",
+    },
+    fixImages: {
+        type: [Schema.Types.ObjectId],
+        ref: "Upload",
+        required: false
     }
 })
 

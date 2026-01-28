@@ -9,7 +9,7 @@ export async function submitAuditFix(
     auditId: string, 
     checkId: string, 
     fixComment: string, 
-    fixImageId?: string
+    fixImageIds?: string[]
 ) {
     try {
         const currentUser = await getCurrentUser();
@@ -38,8 +38,12 @@ export async function submitAuditFix(
         resultItem.fixedBy = currentUser.id;
         resultItem.fixedAt = new Date();
         resultItem.fixComment = fixComment;
-        if (fixImageId) {
-            resultItem.fixImage = fixImageId;
+        
+        // Support for multiple images (new) and single image (backward compatibility)
+        if (fixImageIds && fixImageIds.length > 0) {
+            resultItem.fixImages = fixImageIds;
+            // Keep the first image in the old field for backward compatibility
+            resultItem.fixImage = fixImageIds[0];
         }
 
         // Mongoose might not detect deep change in array
@@ -53,3 +57,4 @@ export async function submitAuditFix(
         return { success: false, message: error instanceof Error ? error.message : 'Error' };
     }
 }
+

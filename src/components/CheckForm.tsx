@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useRef } from "react";
 import { createCheckAction, updateCheckAction, type CheckFormState } from "@/app/admin/sites/checks/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,14 +9,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { toast } from "sonner";
-import ImageUpload from "./ImageUpload";
+import MultiImageUpload from "./MultiImageUpload";
 
 type CheckFormProps = {
     siteId: string;
     checkId?: string;
     initialText?: string;
     initialDescription?: string;
-    initialReferenceImage?: string;
+    initialReferenceImages?: string[];
     mode?: 'create' | 'update';
 };
 
@@ -25,11 +25,13 @@ export default function CheckForm({
     checkId, 
     initialText = '', 
     initialDescription = '',
-    initialReferenceImage,
+    initialReferenceImages = [],
     mode = 'create' 
 }: CheckFormProps) {
     const router = useRouter();
-    const [referenceImageId, setReferenceImageId] = useState<string>(initialReferenceImage || '');
+    const formRef = useRef<HTMLFormElement>(null);
+    const [referenceImageIds, setReferenceImageIds] = useState<string[]>(initialReferenceImages);
+    const [shouldAddAnother, setShouldAddAnother] = useState(false);
     
     const initialState: CheckFormState = { success: false };
     
@@ -42,16 +44,29 @@ export default function CheckForm({
     useEffect(() => {
         if (state.success) {
             toast.success(state.message || 'Művelet sikeres');
-            router.back();
-            router.refresh();
+            
+            if (shouldAddAnother && mode === 'create') {
+                // Reset form for next entry
+                formRef.current?.reset();
+                setReferenceImageIds([]);
+                setShouldAddAnother(false);
+                // Stay on the same page, don't navigate
+            } else {
+                router.back();
+                router.refresh();
+            }
         } else if (state.message && !state.success) {
             toast.error(state.message);
         }
-    }, [state, router]);
+    }, [state, router, shouldAddAnother, mode]);
+
+    const handleSubmitWithFlag = (addAnother: boolean) => {
+        setShouldAddAnother(addAnother);
+    };
 
     return (
-        <form action={formAction} className="flex flex-col gap-4">
-            <input type="hidden" name="referenceImage" value={referenceImageId} />
+        <form ref={formRef} action={formAction} className="flex flex-col gap-4">
+            <input type="hidden" name="referenceImages" value={referenceImageIds.join(',')} />
             
             <div className="flex flex-col gap-2">
                 <Label htmlFor="text">Ellenőrzési pont címe</Label>
@@ -87,13 +102,14 @@ export default function CheckForm({
             </div>
 
             <div className="flex flex-col gap-2">
-                <Label>Referencia kép (opcionális)</Label>
+                <Label>Referencia képek (opcionális)</Label>
                 <p className="text-sm text-muted-foreground">
-                    Tölts fel egy referenciaképet amely mutatja, hogy az ellenőrzési pontnak milyen állapotban kell lennie.
+                    Tölts fel referencia képeket amelyek mutatják, hogy az ellenőrzési pontnak milyen állapotban kell lennie.
                 </p>
-                <ImageUpload 
-                    onUploadComplete={setReferenceImageId}
-                    existingImageId={initialReferenceImage}
+                <MultiImageUpload 
+                    onImagesChange={setReferenceImageIds}
+                    existingImageIds={initialReferenceImages}
+                    maxImages={5}
                 />
             </div>
 
@@ -106,7 +122,21 @@ export default function CheckForm({
                 >
                     Mégse
                 </Button>
-                <Button type="submit" disabled={isPending}>
+                {mode === 'create' && (
+                    <Button 
+                        type="submit" 
+                        variant="secondary"
+                        disabled={isPending}
+                        onClick={() => handleSubmitWithFlag(true)}
+                    >
+                        {isPending ? 'Mentés...' : 'Mentés és új hozzáadása'}
+                    </Button>
+                )}
+                <Button 
+                    type="submit" 
+                    disabled={isPending}
+                    onClick={() => handleSubmitWithFlag(false)}
+                >
                     {isPending ? 'Mentés...' : mode === 'create' ? 'Létrehozás' : 'Mentés'}
                 </Button>
             </div>

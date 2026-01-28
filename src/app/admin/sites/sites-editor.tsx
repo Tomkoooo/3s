@@ -5,10 +5,10 @@ import { ProcessedSite } from "./page"
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { SaveIcon, TrashIcon, UndoIcon, PlusIcon } from "lucide-react"
+import { SaveIcon, TrashIcon, UndoIcon, PlusIcon, EditIcon, ChevronUpIcon, ChevronDownIcon } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { deleteSiteAction, updateSiteAction } from "./actions"
-import { deleteCheckAction } from "./checks/actions"
+import { deleteCheckAction, reorderChecksAction } from "./checks/actions"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -16,18 +16,29 @@ import { Card, CardContent } from "@/components/ui/card"
 
 // Check Card Component
 const CheckCard = ({ 
+    siteId,
     check, 
-    isPending, 
-    onDelete 
+    isPending,
+    canMoveUp,
+    canMoveDown,
+    onDelete,
+    onMoveUp,
+    onMoveDown
 }: { 
+    siteId: string;
     check: {
         _id: string;
         text: string;
         description?: string | null;
         referenceImage?: string | null;
+        referenceImages?: string[];
     }, 
     isPending: boolean,
-    onDelete: () => void 
+    canMoveUp: boolean,
+    canMoveDown: boolean,
+    onDelete: () => void,
+    onMoveUp: () => void,
+    onMoveDown: () => void
 }) => {
     // Ensure check is a plain object
     const checkData = {
@@ -35,6 +46,7 @@ const CheckCard = ({
         text: String(check.text || ''),
         description: check.description || null,
         referenceImage: check.referenceImage || null,
+        referenceImages: check.referenceImages || [],
     };
 
     return (
@@ -48,7 +60,21 @@ const CheckCard = ({
                                 {checkData.description}
                             </p>
                         )}
-                        {checkData.referenceImage && (
+                        {checkData.referenceImages.length > 0 && (
+                            <div className="flex flex-row gap-2 flex-wrap">
+                                {checkData.referenceImages.map((imageId, idx) => (
+                                    <div key={idx} className="relative w-20 h-20 rounded overflow-hidden border">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img 
+                                            src={`/api/upload/${imageId}`}
+                                            alt={`Referencia kép ${idx + 1}`}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        {checkData.referenceImage && !checkData.referenceImages.length && (
                             <div className="relative w-32 h-32 rounded overflow-hidden border">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img 
@@ -59,19 +85,53 @@ const CheckCard = ({
                             </div>
                         )}
                     </div>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={onDelete}
-                        disabled={isPending}
-                    >
-                        <TrashIcon className="w-4 h-4 text-red-600" />
-                    </Button>
+                    <div className="flex flex-col gap-1">
+                        <div className="flex flex-row gap-1">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={onMoveUp}
+                                disabled={isPending || !canMoveUp}
+                                title="Fel"
+                            >
+                                <ChevronUpIcon className="w-4 h-4" />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={onMoveDown}
+                                disabled={isPending || !canMoveDown}
+                                title="Le"
+                            >
+                                <ChevronDownIcon className="w-4 h-4" />
+                            </Button>
+                        </div>
+                        <Link href={`/admin/sites/${siteId}/checks/${checkData._id}/edit`}>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                disabled={isPending}
+                                title="Szerkesztés"
+                            >
+                                <EditIcon className="w-4 h-4" />
+                            </Button>
+                        </Link>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={onDelete}
+                            disabled={isPending}
+                            title="Törlés"
+                        >
+                            <TrashIcon className="w-4 h-4 text-red-600" />
+                        </Button>
+                    </div>
                 </div>
             </CardContent>
         </Card>
     );
 };
+
 
 const SelectedEditor = ({ site, level }: { site: ProcessedSite | null, level: number }) => {
     const router = useRouter();
@@ -211,8 +271,45 @@ const SelectedEditor = ({ site, level }: { site: ProcessedSite | null, level: nu
                             {checks.map((check, index) => (
                                 <CheckCard 
                                     key={check._id || `check-${index}`}
+                                    siteId={site._id}
                                     check={check}
                                     isPending={isPending}
+                                    canMoveUp={index > 0}
+                                    canMoveDown={index < checks.length - 1}
+                                    onMoveUp={() => {
+                                        if (!checks) return;
+                                        const newOrder = [...checks];
+                                        [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+                                        startTransition(async () => {
+                                            const result = await reorderChecksAction(
+                                                site._id,
+                                                newOrder.map(c => c._id)
+                                            );
+                                            if (result.success) {
+                                                toast.success(result.message);
+                                                router.refresh();
+                                            } else {
+                                                toast.error(result.message || 'Hiba történt');
+                                            }
+                                        });
+                                    }}
+                                    onMoveDown={() => {
+                                        if (!checks) return;
+                                        const newOrder = [...checks];
+                                        [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+                                        startTransition(async () => {
+                                            const result = await reorderChecksAction(
+                                                site._id,
+                                                newOrder.map(c => c._id)
+                                            );
+                                            if (result.success) {
+                                                toast.success(result.message);
+                                                router.refresh();
+                                            } else {
+                                                toast.error(result.message || 'Hiba történt');
+                                            }
+                                        });
+                                    }}
                                     onDelete={async () => {
                                         if (!check._id) {
                                             toast.error('Az ellenőrzési pont ID-ja hiányzik');

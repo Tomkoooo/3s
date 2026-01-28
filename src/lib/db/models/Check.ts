@@ -3,7 +3,8 @@ import { Schema, models, model, Document, ObjectId } from "mongoose";
 export type ICheck = {
     text: string;
     description?: string;
-    referenceImage?: ObjectId;
+    referenceImage?: ObjectId; // Deprecated
+    referenceImages?: ObjectId[];
 }
 
 export const checkSchema = new Schema<ICheck>({
@@ -18,6 +19,11 @@ export const checkSchema = new Schema<ICheck>({
     referenceImage: {
         type: Schema.Types.ObjectId,
         ref: "Upload", // Model név string-ként
+        required: false,
+    },
+    referenceImages: {
+        type: [Schema.Types.ObjectId],
+        ref: "Upload",
         required: false,
     },
 })
