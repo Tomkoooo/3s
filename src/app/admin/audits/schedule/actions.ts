@@ -143,6 +143,7 @@ export async function getSchedulableSites() {
                     fullPath,
                     checksCount: site.checksCount,
                     isParent: site.isParent || false,
+                    parentId: site.parentId?.toString(),
                 };
             })
         );
@@ -193,7 +194,9 @@ export async function generateSchedulePreviewAction(
     frequency: ScheduleFrequency,
     auditorPool: string[],
     auditorsPerAudit: number,
-    maxAuditsPerDay?: number
+    maxAuditsPerDay?: number,
+    timeWindowStart?: string,
+    timeWindowEnd?: string
 ): Promise<{
     success: boolean;
     previews?: Array<{
@@ -201,6 +204,8 @@ export async function generateSchedulePreviewAction(
         siteName: string;
         date: string;
         auditors: Array<{ _id: string; fullName: string; email: string }>;
+        timeWindowStart?: string;
+        timeWindowEnd?: string;
     }>;
     conflicts?: string[];
     message?: string;
@@ -242,6 +247,8 @@ export async function generateSchedulePreviewAction(
             auditorsPerAudit,
             maxAuditsPerDay,
             respectBreaks: true,
+            timeWindowStart,
+            timeWindowEnd,
         };
 
         const { previews, conflicts } = await generateAuditPreview(config);
@@ -276,6 +283,8 @@ export async function createScheduledAuditsAction(
         siteName: string;
         date: string;
         auditors: Array<{ _id: string; fullName: string; email: string }>;
+        timeWindowStart?: string;
+        timeWindowEnd?: string;
     }>
 ): Promise<ScheduleResult> {
     try {

@@ -1,7 +1,7 @@
 import Container from "@/components/container";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { PlusIcon, CalendarClockIcon, CalendarIcon } from "lucide-react";
+import { PlusIcon, CalendarClockIcon, CalendarIcon, DownloadIcon } from "lucide-react";
 import { getAudits } from "./actions";
 import AuditCard from "@/components/AuditCard";
 
@@ -22,6 +22,12 @@ export default async function AdminAuditsPage() {
                         <Button variant="outline" size="sm">
                             <CalendarIcon className="w-4 h-4 mr-2" />
                             Naptár
+                        </Button>
+                    </Link>
+                    <Link href="/admin/reports">
+                        <Button variant="outline" size="sm">
+                            <DownloadIcon className="w-4 h-4 mr-2" />
+                            Jelentések
                         </Button>
                     </Link>
                     <Link href="/admin/audits/schedule">

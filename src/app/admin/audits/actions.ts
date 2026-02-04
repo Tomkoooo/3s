@@ -492,10 +492,10 @@ export async function deleteAuditAction(auditId: string): Promise<AuditFormState
             return { success: false, message: 'Az ellenőrzés nem található' };
         }
 
-        // Completed audit-ot ne lehessen törölni
-        if (audit.startTime && audit.endTime) {
+        // Completed audit-ot ne lehessen törölni - Kérésre kivéve (Ticket #1)
+        /* if (audit.startTime && audit.endTime) {
             return { success: false, message: 'Befejezett ellenőrzést nem lehet törölni' };
-        }
+        } */
 
         await Audit.findByIdAndDelete(auditId);
 

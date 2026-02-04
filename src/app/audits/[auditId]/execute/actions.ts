@@ -63,7 +63,7 @@ export async function submitAuditResultAction(
         checkId: string;
         pass: boolean;
         comment?: string;
-        imageId?: string;
+        imageIds?: string[];
     }>
 ): Promise<{ success: boolean; message?: string }> {
     try {
@@ -107,7 +107,14 @@ export async function submitAuditResultAction(
             if (auditResult) {
                 auditResult.result = result.pass; // Map pass to result field
                 auditResult.comment = result.comment || undefined;
-                auditResult.image = result.imageId || undefined;
+                // Support both legacy single image and new array
+                if (result.imageIds && result.imageIds.length > 0) {
+                    auditResult.images = result.imageIds;
+                    auditResult.image = result.imageIds[0]; // Backward compatibility
+                } else {
+                    auditResult.images = [];
+                    auditResult.image = undefined;
+                }
             }
         }
 
@@ -125,6 +132,76 @@ export async function submitAuditResultAction(
             success: false,
             message: error instanceof Error ? error.message : 'Ismeretlen hiba történt',
         };
+    }
+}
+
+/**
+ * Audit részeredmény mentése (nem fejezi be, csak ment)
+ */
+export async function updateAuditProgressAction(
+    auditId: string,
+    checkId: string,
+    data: {
+        pass: boolean;
+        comment?: string;
+        imageIds?: string[];
+    }
+): Promise<{ success: boolean; message?: string }> {
+    try {
+        const currentUser = await getCurrentUser();
+        if (!currentUser) {
+            return { success: false, message: 'Nincs bejelentkezve' };
+        }
+
+        await connectDB();
+
+        const audit = await Audit.findById(auditId);
+        if (!audit) {
+            return { success: false, message: 'Audit nem található' };
+        }
+
+        // Jogosultság/Státusz ellenőrzés
+        const isParticipant = audit.participants.some((p: any) => p.toString() === currentUser.id);
+        if (!isParticipant && currentUser.role !== 'admin') {
+            return { success: false, message: 'Nincs jogosultságod ehhez az ellenőrzéshez' };
+        }
+        
+        if (audit.status === 'completed') {
+            return { success: false, message: 'Már lezárt ellenőrzés nem módosítható' };
+        }
+
+        // Keresés a result tömbben check ID alapján
+        const auditResult = audit.result.find((r: any) => r.check.toString() === checkId);
+        if (!auditResult) {
+            return { success: false, message: 'Érvénytelen ellenőrzési pont' };
+        }
+
+        // Adatok frissítése
+        auditResult.result = data.pass;
+        auditResult.comment = data.comment || undefined;
+        
+        if (data.imageIds && data.imageIds.length > 0) {
+            auditResult.images = data.imageIds;
+            auditResult.image = data.imageIds[0]; // Backward compatibility
+        } else {
+            auditResult.images = [];
+            auditResult.image = undefined;
+        }
+
+        // Státusz frissítése in_progress-re ha még scheduled volt
+        if (audit.status === 'scheduled') {
+            audit.status = 'in_progress';
+            if (!audit.startTime) {
+                audit.startTime = new Date();
+            }
+        }
+
+        await audit.save();
+        revalidatePath(`/audits/${auditId}/execute`);
+        return { success: true };
+    } catch (error) {
+        console.error('Update audit progress error:', error);
+        return { success: false, message: 'Mentés sikertelen' };
     }
 }
 

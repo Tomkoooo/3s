@@ -29,6 +29,8 @@ export type ScheduleConfig = {
     auditorsPerAudit: number;             // How many auditors per audit (default 1)
     maxAuditsPerDay?: number;             // Max audits per auditor per day (default unlimited)
     respectBreaks: boolean;                // Whether to skip auditors on break (default true)
+    timeWindowStart?: string;              // "HH:MM"
+    timeWindowEnd?: string;                // "HH:MM"
 };
 
 /**
@@ -39,6 +41,8 @@ export type AuditPreview = {
     siteName: string;
     date: Date;
     auditors: Array<{ _id: string; fullName: string; email: string }>;
+    timeWindowStart?: string;
+    timeWindowEnd?: string;
 };
 
 /**
@@ -342,6 +346,8 @@ export async function generateAuditPreview(
                     fullName: a.fullName,
                     email: a.email,
                 })),
+                timeWindowStart: config.timeWindowStart,
+                timeWindowEnd: config.timeWindowEnd,
             });
         }
     }
@@ -453,6 +459,8 @@ export async function createAuditsFromPreview(
                 participants: preview.auditors.map((a) => a._id),
                 onDate: preview.date,
                 result: initialResults,
+                timeWindowStart: preview.timeWindowStart,
+                timeWindowEnd: preview.timeWindowEnd,
             });
 
             // Store created audit data for email sending

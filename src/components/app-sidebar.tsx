@@ -95,7 +95,7 @@ export function AppSidebar() {
                                 <SidebarMenu>
                                     <MenuItem href="/admin/calendar" icon={<CalendarIcon className="w-4 h-4" />} label="Globális naptár" onClick={linkClick} />
                                     <MenuItem href="/admin/audits" icon={<ClipboardListIcon className="w-4 h-4" />} label="Ellenőrzések kezelése" onClick={linkClick} />
-                                    <MenuItem href="/admin/audits/schedule" icon={<CalendarClockIcon className="w-4 h-4" />} label="Audit Ütemezés" onClick={linkClick} />
+                                    <MenuItem href="/admin/audits/schedule" icon={<CalendarClockIcon className="w-4 h-4" />} label="Ellenőrzés Ütemezése" onClick={linkClick} />
                                     <MenuItem href="/admin/users" icon={<UsersIcon className="w-4 h-4" />} label="Felhasználók kezelése" onClick={linkClick} />
                                     <MenuItem href="/admin/users/invite" icon={<SendIcon className="w-4 h-4" />} label="Meghívók kezelése" onClick={linkClick} />
                                     <MenuItem href="/admin/breaks" icon={<VolleyballIcon className="w-4 h-4" />} label="Munkaszünetek kezelése" onClick={linkClick} />

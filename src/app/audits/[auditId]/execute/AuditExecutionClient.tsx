@@ -1,16 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Container from "@/components/container";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeftIcon, CheckCircle2Icon } from "lucide-react";
+import { ArrowLeftIcon, CheckCircle2Icon, Loader2Icon } from "lucide-react";
 import Link from "next/link";
 import ChecklistItem from "./ChecklistItem";
-import { startAuditAction, submitAuditResultAction } from "./actions";
+import { startAuditAction, submitAuditResultAction, updateAuditProgressAction } from "./actions";
 import { toast } from "sonner";
+import { useDebounce } from "@/lib/hooks/use-debounce"; // Assuming this exists, or I will use debounce manually
 
 type AuditExecutionClientProps = {
     audit: any;
@@ -25,8 +26,10 @@ export default function AuditExecutionClient({ audit }: AuditExecutionClientProp
     const [startTime, setStartTime] = useState<Date | null>(
         alreadyStarted ? new Date(audit.startTime!) : null
     );
+    const [isSubmitting, setIsSubmitting] = useState(false);
     
     // Betöltjük a már meglévő eredményeket (ha vannak)
+    // Megjegyzés: audit.result tömbben a check mező egy objektum (populálva van)
     const initialResults = audit.result
         ?.filter((r: any) => {
             const resultValue = r.result !== undefined ? r.result : r.pass;
@@ -35,23 +38,75 @@ export default function AuditExecutionClient({ audit }: AuditExecutionClientProp
         .map((r: any) => {
             const resultValue = r.result !== undefined ? r.result : r.pass;
             return {
-                checkId: r.check._id || r.check,
+                checkId: r.check._id || r.check, // Ez a Check definíció ID-ja
                 pass: resultValue,
                 comment: r.comment,
                 imageIds: r.images || (r.image ? [r.image] : []),
             };
         }) || [];
     
-    const [currentIndex, setCurrentIndex] = useState<number>(initialResults.length > 0 ? initialResults.length : 0);
+    // Kezdő index beállítása: az első olyan elem, ami nincs kitöltve
+    const firstUnansweredIndex = audit.result?.findIndex((r: any, idx: number) => {
+         const hasResult = initialResults.some((init: any) => init.checkId === (r.check._id || r.check));
+         return !hasResult;
+    });
+
+    const [currentIndex, setCurrentIndex] = useState<number>(
+        firstUnansweredIndex !== -1 ? firstUnansweredIndex : (initialResults.length > 0 ? initialResults.length - 1 : 0)
+    );
+
     const [results, setResults] = useState<Array<{
         checkId: string;
         pass: boolean;
         comment?: string;
         imageIds?: string[];
     }>>(initialResults);
+    
+    // LocalStorage key
+    const STORAGE_KEY = `audit_progress_${audit._id}`;
+
+    // Load from LocalStorage on mount
+    useEffect(() => {
+        try {
+            const savedData = localStorage.getItem(STORAGE_KEY);
+            if (savedData) {
+                const parsedData = JSON.parse(savedData);
+                // Merge with initialResults (DB data)
+                // Priority: LocalStorage > DB (assuming user was working offline or had unsaved changes)
+                // But only if relevant?
+                // Ensure we respect the structure
+                if (Array.isArray(parsedData)) {
+                    setResults(prev => {
+                        const merged = [...prev];
+                        parsedData.forEach((savedItem: any) => {
+                            const index = merged.findIndex(r => r.checkId === savedItem.checkId);
+                            if (index !== -1) {
+                                // Update existing (potentially overwrite DB value if Local is present)
+                                merged[index] = savedItem; 
+                            } else {
+                                // Add new
+                                merged.push(savedItem);
+                            }
+                        });
+                        return merged;
+                    });
+                    toast.info('Helyi mentés betöltve');
+                }
+            }
+        } catch (e) {
+            console.error('Failed to load from localStorage', e);
+        }
+    }, [STORAGE_KEY]);
+
+    // Save to LocalStorage on change
+    useEffect(() => {
+        if (results.length > 0) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(results));
+        }
+    }, [results, STORAGE_KEY]);
 
     const totalChecks = audit.result?.length || 0;
-    const progress = totalChecks > 0 ? ((currentIndex) / totalChecks) * 100 : 0;
+    const progress = totalChecks > 0 ? ((results.length) / totalChecks) * 100 : 0;
 
     const handleStart = async () => {
         const result = await startAuditAction(audit._id);
@@ -64,7 +119,8 @@ export default function AuditExecutionClient({ audit }: AuditExecutionClientProp
         }
     };
 
-    const handleCheckResult = (checkId: string, pass: boolean, comment?: string, imageIds?: string[]) => {
+    const handleCheckResult = async (checkId: string, pass: boolean, comment?: string, imageIds?: string[]) => {
+        // Optimistic update
         setResults(prev => {
             const existing = prev.find(r => r.checkId === checkId);
             if (existing) {
@@ -73,10 +129,20 @@ export default function AuditExecutionClient({ audit }: AuditExecutionClientProp
             return [...prev, { checkId, pass, comment, imageIds }];
         });
 
+        // Auto-save to backend
+        // Nem várunk a válaszra (fire and forget jellegű, de toast-olhatnánk hibát)
+        await updateAuditProgressAction(audit._id, checkId, {
+            pass,
+            comment,
+            imageIds
+        });
+
         // Auto-advance ha OK (NOK esetén marad, mert komment + kép kell)
-        if (pass && currentIndex < totalChecks - 1) {
-            setTimeout(() => setCurrentIndex(prev => prev + 1), 300);
-        }
+        // De csak akkor, ha ez a legutolsó módosítás (elhagyjuk a timeout-ot a megbízhatóság érdekében, vagy csak gombról léptetünk)
+        // A user feedback szerint zavaró a "beragadt" zöld gomb, ami részben a gyors váltás miatt volt.
+        // Itt most kivesszük az automatikus lapozást, mert a "Következő" gomb egyértelműbb,
+        // ÉS a user panaszkodott, hogy "bár bedobja a következő szempontot", de zöld marad.
+        // Inkább legyen manuális a tovább lépés, az biztosabb.
     };
 
     const handleNext = () => {
@@ -107,9 +173,13 @@ export default function AuditExecutionClient({ audit }: AuditExecutionClientProp
         const confirmed = confirm('Biztosan befejezed az ellenőrzést? Az eredményeket nem lehet később módosítani.');
         if (!confirmed) return;
 
+        setIsSubmitting(true);
         const result = await submitAuditResultAction(audit._id, results);
+        setIsSubmitting(false);
+        
         if (result.success) {
             toast.success('Ellenőrzés sikeresen befejezve!');
+            localStorage.removeItem(`audit_progress_${audit._id}`); // Clean up local storage
             router.push(`/audits/${audit._id}`);
             router.refresh();
         } else {
@@ -117,8 +187,13 @@ export default function AuditExecutionClient({ audit }: AuditExecutionClientProp
         }
     };
 
-    const currentCheck = audit.result?.[currentIndex];
-    const currentResult = results.find(r => r.checkId === currentCheck?._id);
+    const currentCheckItem = audit.result?.[currentIndex];
+    // A currentCheckItem.check az maga a populated check object
+    const currentCheckDef = currentCheckItem?.check;
+    const currentCheckCheckId = currentCheckDef?._id; // Ez a Check ID
+    
+    // Keresés: a results tömb checkId-ja (Check ID) egyezik-e a jelenlegi Check ID-val
+    const currentResult = results.find(r => r.checkId === currentCheckCheckId);
 
     if (!isStarted) {
         return (
@@ -138,7 +213,7 @@ export default function AuditExecutionClient({ audit }: AuditExecutionClientProp
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                             <p className="text-sm text-blue-800">
                                 <strong>Fontos:</strong> Az ellenőrzés indítása után az időt a rendszer rögzíti.
-                                Végig kell menned minden ellenőrzési ponton.
+                                A haladásod automatikusan mentésre kerül minden válasznál.
                             </p>
                         </div>
 
@@ -180,9 +255,15 @@ export default function AuditExecutionClient({ audit }: AuditExecutionClientProp
             <Progress value={progress} className="h-2" />
 
             {/* Checklist Item */}
-            {currentCheck && (
+            {currentCheckDef && (
                 <ChecklistItem
-                    check={currentCheck.check}
+                    key={currentCheckCheckId} // CRITICAL: Reset state on check change
+                    check={{
+                        _id: currentCheckDef._id,
+                        text: currentCheckDef.text,
+                        description: currentCheckDef.description,
+                        referenceImage: currentCheckDef.referenceImage,
+                    }}
                     result={currentResult}
                     onResult={handleCheckResult}
                     auditId={audit._id}
@@ -195,7 +276,7 @@ export default function AuditExecutionClient({ audit }: AuditExecutionClientProp
                     <Button
                         variant="outline"
                         onClick={handlePrevious}
-                        disabled={currentIndex === 0}
+                        disabled={currentIndex === 0 || isSubmitting}
                         className="flex-1"
                     >
                         Előző
@@ -204,7 +285,7 @@ export default function AuditExecutionClient({ audit }: AuditExecutionClientProp
                     {currentIndex < totalChecks - 1 ? (
                         <Button
                             onClick={handleNext}
-                            disabled={!currentResult}
+                            disabled={!currentResult || isSubmitting}
                             className="flex-1"
                         >
                             Következő
@@ -212,14 +293,22 @@ export default function AuditExecutionClient({ audit }: AuditExecutionClientProp
                     ) : (
                         <Button
                             onClick={handleSubmit}
-                            disabled={results.length < totalChecks}
+                            disabled={results.length < totalChecks || isSubmitting}
                             className="flex-1"
                         >
-                            <CheckCircle2Icon className="w-4 h-4 mr-2" />
+                            {isSubmitting ? (
+                                <Loader2Icon className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                                <CheckCircle2Icon className="w-4 h-4 mr-2" />
+                            )}
                             Befejezés
                         </Button>
                     )}
                 </div>
+            </div>
+            
+            <div className="text-center text-xs text-muted-foreground mt-2">
+               A válaszok automatikusan mentésre kerülnek.
             </div>
         </Container>
     );

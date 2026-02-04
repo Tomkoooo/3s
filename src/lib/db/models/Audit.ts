@@ -68,6 +68,8 @@ export type IAudit = {
     endTime?: Date;
     status: 'scheduled' | 'in_progress' | 'completed';
     result: IAuditResult[];
+    timeWindowStart?: string;
+    timeWindowEnd?: string;
 }
 
 export const auditSchema = new Schema<IAudit>({
@@ -96,6 +98,14 @@ export const auditSchema = new Schema<IAudit>({
     result: {
         type: [auditResultSchema],
         required: true,
+    },
+    timeWindowStart: {
+        type: String, // "HH:MM" format
+        required: false,
+    },
+    timeWindowEnd: {
+        type: String, // "HH:MM" format
+        required: false,
     },
 })
 

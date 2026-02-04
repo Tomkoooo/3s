@@ -31,6 +31,7 @@ type Site = {
     fullPath?: string;
     checksCount: number;
     isParent?: boolean;
+    parentId?: string;
 };
 
 type Auditor = {
@@ -45,6 +46,8 @@ type PreviewItem = {
     siteName: string;
     date: string;
     auditors: Array<{ _id: string; fullName: string; email: string }>;
+    timeWindowStart?: string;
+    timeWindowEnd?: string;
 };
 
 export default function ScheduleAuditsPage() {
@@ -63,6 +66,8 @@ export default function ScheduleAuditsPage() {
     const [selectedAuditors, setSelectedAuditors] = useState<string[]>([]);
     const [auditorsPerAudit, setAuditorsPerAudit] = useState(1);
     const [maxAuditsPerDay, setMaxAuditsPerDay] = useState<number | undefined>(undefined);
+    const [timeWindowStart, setTimeWindowStart] = useState('');
+    const [timeWindowEnd, setTimeWindowEnd] = useState('');
     
     // Preview state
     const [previews, setPreviews] = useState<PreviewItem[]>([]);
@@ -83,16 +88,50 @@ export default function ScheduleAuditsPage() {
     }, []);
 
     // Handle site selection
-    const toggleSite = (siteId: string) => {
-        setSelectedSites(prev =>
-            prev.includes(siteId)
-                ? prev.filter(id => id !== siteId)
-                : [...prev, siteId]
-        );
+    const toggleSite = (siteId: string, isParent: boolean) => {
+        if (isParent) {
+            // Find all children
+            const children = sites.filter(s => s.parentId === siteId);
+            const childrenIds = children.map(s => s._id);
+            
+            // Check if all are currently selected
+            const allSelected = childrenIds.every(id => selectedSites.includes(id));
+            
+            if (allSelected) {
+                // Deselect all
+                setSelectedSites(prev => prev.filter(id => !childrenIds.includes(id)));
+            } else {
+                // Select all
+                setSelectedSites(prev => {
+                    const newIds = new Set(prev);
+                    childrenIds.forEach(id => newIds.add(id));
+                    return Array.from(newIds);
+                });
+            }
+        } else {
+            // Toggle single site
+            setSelectedSites(prev =>
+                prev.includes(siteId)
+                    ? prev.filter(id => id !== siteId)
+                    : [...prev, siteId]
+            );
+        }
     };
 
     const selectAllSites = () => {
-        setSelectedSites(sites.map(s => s._id));
+        // Select only leaf nodes (not parents)
+        // Note: isParent flag comes from backend. We only select items that are NOT parents (or have checks but are not JUST containers)
+        // If a parent has checks directly, it should be selected? 
+        // Based on backend logic: isParent is set if checksCount is from children. 
+        // But Site definition says: `hasDirectChecks`? 
+        // Actually, we should select ALL sites that are NOT pure parents.
+        // But simplifying: Just select everything that !isParent?
+        // Wait, if a site is BOTH parent and has checks?
+        // Let's assume for now we select everything that is "auditable".
+        // In the UI list, children are rendered.
+        // Let's select all sites that are LEAF nodes usually.
+        // For safety, let's select ALL IDs that are NOT marked as isParent.
+        setSelectedSites(sites.filter(s => !s.isParent).map(s => s._id));
     };
 
     const deselectAllSites = () => {
@@ -136,7 +175,9 @@ export default function ScheduleAuditsPage() {
                 frequency,
                 selectedAuditors,
                 auditorsPerAudit,
-                maxAuditsPerDay
+                maxAuditsPerDay,
+                timeWindowStart,
+                timeWindowEnd
             );
 
             if (result.success && result.previews) {
@@ -159,7 +200,7 @@ export default function ScheduleAuditsPage() {
         }
 
         const confirmed = confirm(
-            `Biztos vagy benne, hogy létrehozod a ${previews.length} audit-ot? Ez a művelet nem vonható vissza.`
+            `Biztos vagy benne, hogy létrehozod a ${previews.length} ellenőrzést? Ez a művelet nem vonható vissza.`
         );
 
         if (!confirmed) return;
@@ -168,11 +209,11 @@ export default function ScheduleAuditsPage() {
             const result = await createScheduledAuditsAction(previews);
 
             if (result.success) {
-                toast.success(result.message || 'Audit-ok sikeresen létrehozva');
+                toast.success(result.message || 'Ellenőrzések sikeresen létrehozva');
                 router.push('/admin/audits');
                 router.refresh();
             } else {
-                toast.error(result.message || 'Hiba történt az audit-ok létrehozása során');
+                toast.error(result.message || 'Hiba történt az ellenőrzések létrehozása során');
             }
         });
     };
@@ -198,7 +239,7 @@ export default function ScheduleAuditsPage() {
                     <CardHeader>
                         <CardTitle>Előnézet</CardTitle>
                         <CardDescription>
-                            {previews.length} audit lesz létrehozva
+                            {previews.length} ellenőrzés lesz létrehozva
                             {conflicts.length > 0 && `, ${conflicts.length} konfliktus`}
                         </CardDescription>
                     </CardHeader>
@@ -242,6 +283,11 @@ export default function ScheduleAuditsPage() {
                                                 <td className="p-3">{preview.siteName}</td>
                                                 <td className="p-3">
                                                     {new Date(preview.date).toLocaleDateString('hu-HU')}
+                                                    {preview.timeWindowStart && preview.timeWindowEnd && (
+                                                        <div className="text-xs text-muted-foreground">
+                                                            {preview.timeWindowStart} - {preview.timeWindowEnd}
+                                                        </div>
+                                                    )}
                                                 </td>
                                                 <td className="p-3">
                                                     {preview.auditors.map(a => a.fullName).join(', ')}
@@ -267,7 +313,7 @@ export default function ScheduleAuditsPage() {
                                 disabled={isPending || previews.length === 0}
                             >
                                 <CheckCircle2Icon className="w-4 h-4 mr-2" />
-                                {isPending ? 'Létrehozás...' : `${previews.length} Audit Létrehozása`}
+                                {isPending ? 'Létrehozás...' : `${previews.length} Ellenőrzés Létrehozása`}
                             </Button>
                         </div>
                     </CardContent>
@@ -280,9 +326,9 @@ export default function ScheduleAuditsPage() {
         <Container className="flex-1 flex flex-col gap-4 max-w-6xl">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold">Audit Ütemezés</h1>
+                    <h1 className="text-2xl font-bold">Ellenőrzés Ütemezése</h1>
                     <p className="text-muted-foreground">
-                        Automatikus audit generálás több területhez egyszerre
+                        Automatikus ellenőrzés generálás több területhez egyszerre
                     </p>
                 </div>
                 <Link href="/admin/audits">
@@ -330,33 +376,25 @@ export default function ScheduleAuditsPage() {
                             ) : (
                                 (() => {
                                     // Group sites by parent
-                                    const topLevel: any[] = [];
-                                    const childrenMap = new Map<string, any[]>();
+                                    // Sites that are parents usually have isParent=true
+                                    // We can just find them by having children
+                                    const parents = sites.filter(s => s.isParent);
                                     
-                                    sites.forEach(site => {
-                                        const pathParts = (site.fullPath || site.name).split(' > ');
-                                        if (pathParts.length === 1) {
-                                            topLevel.push(site);
-                                        } else {
-                                            const parentName = pathParts[0];
-                                            if (!childrenMap.has(parentName)) {
-                                                childrenMap.set(parentName, []);
-                                            }
-                                            childrenMap.get(parentName)!.push(site);
-                                        }
-                                    });
-                                    
-                                    return topLevel.map(parentSite => {
-                                        const parentName = (parentSite.fullPath || parentSite.name).split(' > ')[0];
-                                        const children = childrenMap.get(parentName) || [];
+                                    return parents.map(parentSite => {
+                                        const children = sites.filter(s => s.parentId === parentSite._id);
+                                        
+                                        // Determine parent state
+                                        const allChildrenSelected = children.length > 0 && children.every(c => selectedSites.includes(c._id));
+                                        const someChildrenSelected = children.some(c => selectedSites.includes(c._id));
                                         
                                         return (
                                             <div key={parentSite._id} className="space-y-1">
                                                 <div className="flex items-center gap-2">
                                                     <Checkbox
                                                         id={`site-${parentSite._id}`}
-                                                        checked={selectedSites.includes(parentSite._id)}
-                                                        onCheckedChange={() => toggleSite(parentSite._id)}
+                                                        checked={allChildrenSelected || (children.length === 0 && selectedSites.includes(parentSite._id))} // If no children, treat as normal? (shouldn't happen for isParent)
+                                                        onCheckedChange={() => toggleSite(parentSite._id, true)}
+                                                        className={someChildrenSelected && !allChildrenSelected ? "opacity-50" : ""}
                                                     />
                                                     <label
                                                         htmlFor={`site-${parentSite._id}`}
@@ -374,7 +412,7 @@ export default function ScheduleAuditsPage() {
                                                         <Checkbox
                                                             id={`site-${child._id}`}
                                                             checked={selectedSites.includes(child._id)}
-                                                            onCheckedChange={() => toggleSite(child._id)}
+                                                            onCheckedChange={() => toggleSite(child._id, false)}
                                                         />
                                                         <label
                                                             htmlFor={`site-${child._id}`}
@@ -395,7 +433,7 @@ export default function ScheduleAuditsPage() {
                         </div>
 
                         <p className="text-xs text-muted-foreground">
-                            {selectedSites.length} / {sites.length} kiválasztva
+                            {selectedSites.length} / {sites.filter(s => !s.isParent).length} kiválasztva
                         </p>
                     </CardContent>
                 </Card>
@@ -440,6 +478,33 @@ export default function ScheduleAuditsPage() {
                             </div>
                         </div>
 
+                         {/* Time Window (Optional) */}
+                         <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="timeWindowStart">
+                                    Időablak Kezdete (Opcionális)
+                                </Label>
+                                <Input
+                                    id="timeWindowStart"
+                                    type="time"
+                                    value={timeWindowStart}
+                                    onChange={(e) => setTimeWindowStart(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="timeWindowEnd">
+                                    Időablak Vége (Opcionális)
+                                </Label>
+                                <Input
+                                    id="timeWindowEnd"
+                                    type="time"
+                                    value={timeWindowEnd}
+                                    onChange={(e) => setTimeWindowEnd(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
                         {/* Frequency */}
                         <div className="space-y-2">
                             <Label htmlFor="frequency">Gyakoriság</Label>
@@ -459,7 +524,7 @@ export default function ScheduleAuditsPage() {
                         <div className="space-y-2">
                             <Label htmlFor="auditorsPerAudit">
                                 <UsersIcon className="w-4 h-4 inline mr-1" />
-                                Auditorok száma audit-onként
+                                Auditorok száma ellenőrzésenként
                             </Label>
                             <Input
                                 id="auditorsPerAudit"
@@ -474,7 +539,7 @@ export default function ScheduleAuditsPage() {
                         {/* Max audits per day */}
                         <div className="space-y-2">
                             <Label htmlFor="maxAuditsPerDay">
-                                Max audit/nap/auditor (opcionális)
+                                Max ellenőrzés/nap/auditor (opcionális)
                             </Label>
                             <Input
                                 id="maxAuditsPerDay"
@@ -489,7 +554,7 @@ export default function ScheduleAuditsPage() {
                                 }
                             />
                             <p className="text-xs text-muted-foreground">
-                                Ha megadod, egy auditor maximum ennyi audit-ot kaphat egy napon
+                                Ha megadod, egy auditor maximum ennyi ellenőrzést kaphat egy napon
                             </p>
                         </div>
 
