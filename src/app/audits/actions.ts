@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/db";
 import Audit from "@/lib/db/models/Audit";
 import { getCurrentUser } from "@/lib/auth";
 import { ObjectId } from "mongodb";
+import dayjs from "@/lib/dayjs";
 
 // Lean típusok a Mongoose queryhez
 type LeanSite = {
@@ -284,16 +285,19 @@ export async function getDashboardStats() {
 
         await connectDB();
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
+        const today = dayjs().startOf('day');
+        const tomorrow = today.add(1, 'day');
+        const startOfWeek = dayjs().startOf('week');
+        const endOfWeek = dayjs().endOf('week');
 
         if (currentUser.role === 'admin') {
             // Admin statisztikák
             const totalAudits = await Audit.countDocuments();
             const todayAudits = await Audit.countDocuments({
-                onDate: { $gte: today, $lt: tomorrow },
+                onDate: { $gte: today.toDate(), $lt: tomorrow.toDate() },
+            });
+            const weeklyAudits = await Audit.countDocuments({
+                onDate: { $gte: startOfWeek.toDate(), $lte: endOfWeek.toDate() },
             });
 
             const allAudits = await Audit.find().lean();
@@ -303,6 +307,7 @@ export async function getDashboardStats() {
             return {
                 totalAudits,
                 todayAudits,
+                weeklyAudits,
                 inProgress,
                 scheduled,
             };
@@ -334,19 +339,24 @@ export async function getDashboardStats() {
 
             const totalAudits = myAudits.length;
             const todayAudits = myAudits.filter((a: any) => {
-                const auditDate = new Date(a.onDate);
-                auditDate.setHours(0, 0, 0, 0);
-                return auditDate.getTime() === today.getTime();
+                return dayjs(a.onDate).isSame(today, 'day');
+            }).length;
+            const weeklyAudits = myAudits.filter((a: any) => {
+                return dayjs(a.onDate).isSame(today, 'week');
             }).length;
 
             const completed = myAudits.filter((a: any) => a.startTime && a.endTime).length;
+            
+            // Next audit is the earliest one NOT started and NOT from a future week (unless all from this week are done)
+            // Actually, keep it simple: earliest one NOT started.
             const nextAudit = myAudits
-                .filter((a: any) => !a.startTime && new Date(a.onDate) >= today)
-                .sort((a: any, b: any) => new Date(a.onDate).getTime() - new Date(b.onDate).getTime())[0];
+                .filter((a: any) => !a.startTime)
+                .sort((a: any, b: any) => dayjs(a.onDate).valueOf() - dayjs(b.onDate).valueOf())[0];
 
             return {
                 totalAudits,
                 todayAudits,
+                weeklyAudits,
                 completed,
                 nextAuditDate: nextAudit ? nextAudit.onDate : null,
             };
