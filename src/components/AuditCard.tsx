@@ -3,6 +3,7 @@ import { Button } from "./ui/button";
 import StatusBadge from "./StatusBadge";
 import { CalendarIcon, UsersIcon, CheckCircle2Icon } from "lucide-react";
 import Link from "next/link";
+import dayjs from "@/lib/dayjs";
 
 type AuditCardProps = {
     audit: {
@@ -28,6 +29,15 @@ export default function AuditCard({ audit, showActions = true, basePath = "/audi
     const checkCount = audit.result?.length || 0;
     const participantNames = audit.participants.map(p => p.fullName).join(', ');
 
+    const isCompleted = audit.status === 'completed';
+    let displayDate = formattedDate;
+
+    if (isCompleted) {
+        const startOfWeek = dayjs(audit.onDate).startOf('week');
+        const endOfWeek = dayjs(audit.onDate).endOf('week');
+        displayDate = `${startOfWeek.format('YYYY.MM.DD.')} – ${endOfWeek.format('YYYY.MM.DD.')}`;
+    }
+
     return (
         <Card>
             <CardHeader>
@@ -40,8 +50,8 @@ export default function AuditCard({ audit, showActions = true, basePath = "/audi
             </CardHeader>
             <CardContent className="space-y-3">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <CalendarIcon className="w-4 h-4" />
-                    <span>{formattedDate}</span>
+                    <CalendarIcon className="w-4 h-4 mt-0.5 shrink-0" />
+                    <span>{displayDate}</span>
                 </div>
 
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">

@@ -46,8 +46,6 @@ type PreviewItem = {
     siteName: string;
     date: string;
     auditors: Array<{ _id: string; fullName: string; email: string }>;
-    timeWindowStart?: string;
-    timeWindowEnd?: string;
 };
 
 export default function ScheduleAuditsPage() {
@@ -65,9 +63,6 @@ export default function ScheduleAuditsPage() {
     const [frequency, setFrequency] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
     const [selectedAuditors, setSelectedAuditors] = useState<string[]>([]);
     const [auditorsPerAudit, setAuditorsPerAudit] = useState(1);
-    const [maxAuditsPerDay, setMaxAuditsPerDay] = useState<number | undefined>(undefined);
-    const [timeWindowStart, setTimeWindowStart] = useState('');
-    const [timeWindowEnd, setTimeWindowEnd] = useState('');
     
     // Preview state
     const [previews, setPreviews] = useState<PreviewItem[]>([]);
@@ -174,10 +169,7 @@ export default function ScheduleAuditsPage() {
                 endDate,
                 frequency,
                 selectedAuditors,
-                auditorsPerAudit,
-                maxAuditsPerDay,
-                timeWindowStart,
-                timeWindowEnd
+                auditorsPerAudit
             );
 
             if (result.success && result.previews) {
@@ -283,11 +275,6 @@ export default function ScheduleAuditsPage() {
                                                 <td className="p-3">{preview.siteName}</td>
                                                 <td className="p-3">
                                                     {new Date(preview.date).toLocaleDateString('hu-HU')}
-                                                    {preview.timeWindowStart && preview.timeWindowEnd && (
-                                                        <div className="text-xs text-muted-foreground">
-                                                            {preview.timeWindowStart} - {preview.timeWindowEnd}
-                                                        </div>
-                                                    )}
                                                 </td>
                                                 <td className="p-3">
                                                     {preview.auditors.map(a => a.fullName).join(', ')}
@@ -326,7 +313,7 @@ export default function ScheduleAuditsPage() {
         <Container className="flex-1 flex flex-col gap-4 max-w-6xl">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold">Ellenőrzés Ütemezése</h1>
+                    <h1 className="text-2xl font-bold">Ellenőrzés ütemezése</h1>
                     <p className="text-muted-foreground">
                         Automatikus ellenőrzés generálás több területhez egyszerre
                     </p>
@@ -478,32 +465,7 @@ export default function ScheduleAuditsPage() {
                             </div>
                         </div>
 
-                         {/* Time Window (Optional) */}
-                         <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="timeWindowStart">
-                                    Időablak Kezdete (Opcionális)
-                                </Label>
-                                <Input
-                                    id="timeWindowStart"
-                                    type="time"
-                                    value={timeWindowStart}
-                                    onChange={(e) => setTimeWindowStart(e.target.value)}
-                                />
-                            </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="timeWindowEnd">
-                                    Időablak Vége (Opcionális)
-                                </Label>
-                                <Input
-                                    id="timeWindowEnd"
-                                    type="time"
-                                    value={timeWindowEnd}
-                                    onChange={(e) => setTimeWindowEnd(e.target.value)}
-                                />
-                            </div>
-                        </div>
 
                         {/* Frequency */}
                         <div className="space-y-2">
@@ -536,27 +498,7 @@ export default function ScheduleAuditsPage() {
                             />
                         </div>
 
-                        {/* Max audits per day */}
-                        <div className="space-y-2">
-                            <Label htmlFor="maxAuditsPerDay">
-                                Max ellenőrzés/nap/auditor (opcionális)
-                            </Label>
-                            <Input
-                                id="maxAuditsPerDay"
-                                type="number"
-                                min={1}
-                                placeholder="Nincs limit"
-                                value={maxAuditsPerDay || ''}
-                                onChange={(e) =>
-                                    setMaxAuditsPerDay(
-                                        e.target.value ? parseInt(e.target.value) : undefined
-                                    )
-                                }
-                            />
-                            <p className="text-xs text-muted-foreground">
-                                Ha megadod, egy auditor maximum ennyi ellenőrzést kaphat egy napon
-                            </p>
-                        </div>
+
 
                         {/* Auditor Pool */}
                         <div className="space-y-2">

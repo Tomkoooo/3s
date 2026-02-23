@@ -8,6 +8,8 @@ import StatusBadge from "@/components/StatusBadge";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import FixAuditItem from "@/components/FixAuditItem";
+import dayjs from "@/lib/dayjs";
+import ClickableImage from "@/components/ClickableImage";
 
 export default async function UserAuditDetailsPage({
     params,
@@ -26,12 +28,38 @@ export default async function UserAuditDetailsPage({
     
     const isFixer = currentUser.role === 'fixer';
 
-    const date = new Date(audit.onDate);
-    const formattedDate = date.toLocaleDateString('hu-HU', { 
+    let displayDate = new Date(audit.onDate).toLocaleDateString('hu-HU', { 
         year: 'numeric', 
         month: 'long', 
         day: 'numeric' 
     });
+
+    const isCompleted = audit.status === 'completed';
+    if (isCompleted) {
+        const startOfWeek = dayjs(audit.onDate).startOf('week');
+        const endOfWeek = dayjs(audit.onDate).endOf('week');
+        displayDate = `${startOfWeek.format('YYYY.MM.DD.')} – ${endOfWeek.format('YYYY.MM.DD.')}`;
+    }
+
+    let totalChecks = 0;
+    let passedChecks = 0;
+    
+    if (audit.result && Array.isArray(audit.result)) {
+        const answered = audit.result.filter((r: any) => {
+            const val = r.result !== undefined ? r.result : r.pass;
+            return val !== undefined && val !== null;
+        });
+        totalChecks = audit.result.length;
+        passedChecks = answered.filter((r: any) => {
+             const val = r.result !== undefined ? r.result : r.pass;
+             return val === true;
+        }).length;
+    }
+
+    const scorePercent = totalChecks > 0 ? Math.round((passedChecks / totalChecks) * 100) : 0;
+    let scoreColor = "bg-green-100 text-green-800 border-green-200";
+    if (scorePercent < 50) scoreColor = "bg-red-100 text-red-800 border-red-200";
+    else if (scorePercent < 80) scoreColor = "bg-yellow-100 text-yellow-800 border-yellow-200";
 
     const canExecute = audit.status === 'scheduled' || audit.status === 'in_progress';
     const isToday = new Date(audit.onDate).toDateString() === new Date().toDateString();
@@ -64,7 +92,14 @@ export default async function UserAuditDetailsPage({
                             <CardTitle className="text-2xl">{audit.site?.name || 'Ismeretlen terület'}</CardTitle>
                             <CardDescription>Ellenőrzés részletei</CardDescription>
                         </div>
-                        <StatusBadge status={audit.status as 'scheduled' | 'in_progress' | 'completed'} />
+                        <div className="flex flex-col items-end gap-2">
+                            <StatusBadge status={audit.status as 'scheduled' | 'in_progress' | 'completed'} />
+                            {isCompleted && totalChecks > 0 && (
+                                <div className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${scoreColor}`}>
+                                    Pontszám: {passedChecks} / {totalChecks} ({scorePercent}%)
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -74,7 +109,7 @@ export default async function UserAuditDetailsPage({
                             <CalendarIcon className="w-5 h-5 text-muted-foreground" />
                             <div>
                                 <p className="text-sm text-muted-foreground">Dátum</p>
-                                <p className="font-medium">{formattedDate}</p>
+                                <p className="font-medium">{displayDate}</p>
                             </div>
                         </div>
 
@@ -170,11 +205,10 @@ export default async function UserAuditDetailsPage({
                                             </div>
                                             {result.image && (
                                                 <div className="relative w-32 h-32 rounded overflow-hidden border">
-                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                    <img
+                                                    <ClickableImage 
                                                         src={`/api/upload/${result.image}`}
                                                         alt="Audit kép"
-                                                        className="w-full h-full object-cover"
+                                                        className="w-full h-full"
                                                     />
                                                 </div>
                                             )}
@@ -221,7 +255,7 @@ export default async function UserAuditDetailsPage({
                     {audit.status === 'scheduled' && (
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                             <p className="text-sm text-blue-800">
-                                Az ellenőrzés {formattedDate}-ra van ütemezve, de bármikor elindítható.
+                                Az ellenőrzés {displayDate}-ra van ütemezve, de bármikor elindítható.
                             </p>
                         </div>
                     )}

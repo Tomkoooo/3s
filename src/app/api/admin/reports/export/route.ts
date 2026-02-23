@@ -37,11 +37,12 @@ export async function GET(request: NextRequest) {
 
         // Generate CSV
         const header = ['Audit ID', 'Terület', 'Dátum', 'Státusz', 'Auditorok', 'Összes pont', 'Megfelelt', 'Eredmény %'];
-        const rows = [header.join(',')];
+        const rows = [header.join(';')];
 
         for (const audit of audits) {
             const siteName = (audit.site as any)?.name || 'Ismeretlen';
-            const date = new Date(audit.onDate).toISOString().split('T')[0];
+            const d = new Date(audit.onDate);
+            const date = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}.`;
             const auditorNames = (audit.participants as any[]).map((p: any) => p.fullName).join('; ');
             
             // Calc status
@@ -82,7 +83,7 @@ export async function GET(request: NextRequest) {
                 totalChecks,
                 passedChecks,
                 `${scorePercent}%`
-            ].join(','));
+            ].join(';'));
         }
 
         const csvContent = rows.join('\n');
@@ -93,7 +94,7 @@ export async function GET(request: NextRequest) {
         return new NextResponse(finalContent, {
             headers: {
                 'Content-Type': 'text/csv; charset=utf-8',
-                'Content-Disposition': `attachment; filename="audit_report_${startDateStr}_${endDateStr}.csv"`,
+                'Content-Disposition': `attachment; filename="Ellenorzesek_${startDateStr}_${endDateStr}.csv"`,
             },
         });
 

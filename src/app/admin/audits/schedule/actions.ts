@@ -167,7 +167,7 @@ export async function getAvailableAuditors() {
 
         await connectDB();
 
-        const auditors = await User.find({ role: { $in: ['auditor', 'admin'] } })
+        const auditors = await User.find({ role: 'auditor' })
             .select('_id fullName email role')
             .sort({ fullName: 1 })
             .lean();
@@ -193,10 +193,7 @@ export async function generateSchedulePreviewAction(
     endDateStr: string,
     frequency: ScheduleFrequency,
     auditorPool: string[],
-    auditorsPerAudit: number,
-    maxAuditsPerDay?: number,
-    timeWindowStart?: string,
-    timeWindowEnd?: string
+    auditorsPerAudit: number
 ): Promise<{
     success: boolean;
     previews?: Array<{
@@ -204,8 +201,6 @@ export async function generateSchedulePreviewAction(
         siteName: string;
         date: string;
         auditors: Array<{ _id: string; fullName: string; email: string }>;
-        timeWindowStart?: string;
-        timeWindowEnd?: string;
     }>;
     conflicts?: string[];
     message?: string;
@@ -245,10 +240,7 @@ export async function generateSchedulePreviewAction(
             frequency,
             auditorPool: auditorPool.length > 0 ? auditorPool : undefined,
             auditorsPerAudit,
-            maxAuditsPerDay,
             respectBreaks: true,
-            timeWindowStart,
-            timeWindowEnd,
         };
 
         const { previews, conflicts } = await generateAuditPreview(config);
@@ -283,8 +275,6 @@ export async function createScheduledAuditsAction(
         siteName: string;
         date: string;
         auditors: Array<{ _id: string; fullName: string; email: string }>;
-        timeWindowStart?: string;
-        timeWindowEnd?: string;
     }>
 ): Promise<ScheduleResult> {
     try {
@@ -338,8 +328,7 @@ export async function quickScheduleAuditsAction(
     endDateStr: string,
     frequency: ScheduleFrequency,
     auditorPool: string[],
-    auditorsPerAudit: number,
-    maxAuditsPerDay?: number
+    auditorsPerAudit: number
 ): Promise<ScheduleResult> {
     try {
         // Auth check
@@ -368,7 +357,6 @@ export async function quickScheduleAuditsAction(
             frequency,
             auditorPool: auditorPool.length > 0 ? auditorPool : undefined,
             auditorsPerAudit,
-            maxAuditsPerDay,
             respectBreaks: true,
         };
 

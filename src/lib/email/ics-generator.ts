@@ -42,7 +42,7 @@ export function generateAuditIcs(auditData: AuditEventData): {
     error?: string;
 } {
     try {
-        const event: EventAttributes = {
+        const event: any = {
             title: auditData.title,
             description: auditData.description,
             location: auditData.location,
@@ -88,7 +88,7 @@ export function generateAuditIcs(auditData: AuditEventData): {
             event.url = auditData.url;
         }
 
-        const { error, value } = createEvents([event]);
+        const { error, value } = createEvents([event as EventAttributes]);
 
         if (error) {
             return {
@@ -119,8 +119,8 @@ export function generateMultipleAuditsIcs(auditsData: AuditEventData[]): {
     error?: string;
 } {
     try {
-        const events: EventAttributes[] = auditsData.map((auditData, index) => {
-            const event: EventAttributes = {
+        const events: any[] = auditsData.map((auditData, index) => {
+            const event: any = {
                 title: auditData.title,
                 description: auditData.description,
                 location: auditData.location,
@@ -164,7 +164,7 @@ export function generateMultipleAuditsIcs(auditsData: AuditEventData[]): {
             return event;
         });
 
-        const { error, value } = createEvents(events);
+        const { error, value } = createEvents(events as EventAttributes[]);
 
         if (error) {
             return {

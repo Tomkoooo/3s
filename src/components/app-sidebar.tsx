@@ -25,6 +25,7 @@ import {
     SendIcon,
     UserIcon,
     CalendarClockIcon,
+    DownloadCloudIcon,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth"
 import { redirect } from "next/navigation"
@@ -57,8 +58,8 @@ export function AppSidebar() {
         <Sidebar className="max-w-full">
             <SidebarHeader className="p-4 flex flex-row items-center gap-2">
                 <div className="flex flex-col gap-0.5">
-                    <span className="font-medium truncate leading-none">General-Plastics Kft</span>
-                    <span className="text-xs text-muted-foreground truncate">3S Ellenörző Rendszer</span>
+                    <span className="font-medium truncate leading-none">General-Plastics</span>
+                    <span className="text-xs text-muted-foreground truncate">3S Ellenőrző Rendszer</span>
                 </div>
             </SidebarHeader>
             <SidebarContent>
@@ -82,6 +83,7 @@ export function AppSidebar() {
                         <SidebarMenu>
                             <MenuItem href="/my-account/breaks" icon={<VolleyballIcon className="w-4 h-4" />} label="Munkaszünet" onClick={linkClick} />
                             <MenuItem href="/my-account" icon={<UserIcon className="w-4 h-4" />} label="Fiókbeállítások" onClick={linkClick} />
+                            <MenuItem href="/install-app" icon={<DownloadCloudIcon className="w-4 h-4" />} label="Alkalmazás telepítése" onClick={linkClick} />
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>
@@ -95,7 +97,7 @@ export function AppSidebar() {
                                 <SidebarMenu>
                                     <MenuItem href="/admin/calendar" icon={<CalendarIcon className="w-4 h-4" />} label="Globális naptár" onClick={linkClick} />
                                     <MenuItem href="/admin/audits" icon={<ClipboardListIcon className="w-4 h-4" />} label="Ellenőrzések kezelése" onClick={linkClick} />
-                                    <MenuItem href="/admin/audits/schedule" icon={<CalendarClockIcon className="w-4 h-4" />} label="Ellenőrzés Ütemezése" onClick={linkClick} />
+                                    <MenuItem href="/admin/audits/schedule" icon={<CalendarClockIcon className="w-4 h-4" />} label="Ellenőrzés ütemezése" onClick={linkClick} />
                                     <MenuItem href="/admin/users" icon={<UsersIcon className="w-4 h-4" />} label="Felhasználók kezelése" onClick={linkClick} />
                                     <MenuItem href="/admin/users/invite" icon={<SendIcon className="w-4 h-4" />} label="Meghívók kezelése" onClick={linkClick} />
                                     <MenuItem href="/admin/breaks" icon={<VolleyballIcon className="w-4 h-4" />} label="Munkaszünetek kezelése" onClick={linkClick} />

@@ -27,10 +27,7 @@ export type ScheduleConfig = {
     frequency: ScheduleFrequency;          // How often to schedule
     auditorPool?: string[];                // Specific auditors (if empty, use all available)
     auditorsPerAudit: number;             // How many auditors per audit (default 1)
-    maxAuditsPerDay?: number;             // Max audits per auditor per day (default unlimited)
     respectBreaks: boolean;                // Whether to skip auditors on break (default true)
-    timeWindowStart?: string;              // "HH:MM"
-    timeWindowEnd?: string;                // "HH:MM"
 };
 
 /**
@@ -41,8 +38,6 @@ export type AuditPreview = {
     siteName: string;
     date: Date;
     auditors: Array<{ _id: string; fullName: string; email: string }>;
-    timeWindowStart?: string;
-    timeWindowEnd?: string;
 };
 
 /**
@@ -66,8 +61,8 @@ export async function getAvailableAuditorsForDate(
 ): Promise<Array<{ _id: any; fullName: string; email: string; role: string }>> {
     await connectDB();
 
-    // Query for auditors (role = 'auditor' or 'admin')
-    const query: any = { role: { $in: ['auditor', 'admin'] } };
+    // Query for auditors (only 'auditor' role)
+    const query: any = { role: 'auditor' };
     
     // If auditor pool is specified, filter by IDs
     if (auditorPool && auditorPool.length > 0) {
@@ -298,18 +293,6 @@ export async function generateAuditPreview(
         // Get available auditors for this date
         let availableAuditors = await getAvailableAuditorsForDate(date, config.auditorPool);
 
-        // Filter by max audits per day
-        if (config.maxAuditsPerDay !== undefined && config.maxAuditsPerDay > 0) {
-            const filtered = [];
-            for (const auditor of availableAuditors) {
-                const count = await getAuditorAuditCountForDate(auditor._id.toString(), date);
-                if (count < config.maxAuditsPerDay) {
-                    filtered.push(auditor);
-                }
-            }
-            availableAuditors = filtered;
-        }
-
         // RANDOMIZE auditor order for this date to prevent repetitive pairings
         availableAuditors = shuffleArray(availableAuditors);
 
@@ -346,8 +329,6 @@ export async function generateAuditPreview(
                     fullName: a.fullName,
                     email: a.email,
                 })),
-                timeWindowStart: config.timeWindowStart,
-                timeWindowEnd: config.timeWindowEnd,
             });
         }
     }
@@ -459,8 +440,6 @@ export async function createAuditsFromPreview(
                 participants: preview.auditors.map((a) => a._id),
                 onDate: preview.date,
                 result: initialResults,
-                timeWindowStart: preview.timeWindowStart,
-                timeWindowEnd: preview.timeWindowEnd,
             });
 
             // Store created audit data for email sending
@@ -607,7 +586,6 @@ export async function generateRecurringAudits(): Promise<{
                 frequency: schedule.frequency as ScheduleFrequency,
                 auditorPool: schedule.auditorPool?.map((id: any) => id.toString()),
                 auditorsPerAudit: schedule.auditorsPerAudit,
-                maxAuditsPerDay: schedule.maxAuditsPerDay,
                 respectBreaks: true,
             };
             

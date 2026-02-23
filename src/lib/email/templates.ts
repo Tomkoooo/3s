@@ -183,7 +183,7 @@ function emailLayout(content: string): string {
     <div class="container">
         <div class="header">
             <h1>3S Ellenőrző Rendszer</h1>
-            <p>General-Plastics Kft</p>
+            <p>General-Plastics</p>
         </div>
         ${content}
         <div class="footer">
