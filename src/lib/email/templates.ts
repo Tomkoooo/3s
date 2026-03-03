@@ -407,6 +407,7 @@ export function renderInviteEmail(data: InviteEmailData): string {
         admin: 'Adminisztrátor',
         auditor: 'Auditor',
         fixer: 'Javító (Karbantartó)',
+        site_leader: 'Terület vezető',
     } as any;
 
     const roleName = roleNames[data.role] || data.role;
@@ -461,6 +462,7 @@ export function renderInviteText(data: InviteEmailData): string {
         admin: 'Adminisztrátor',
         auditor: 'Auditor',
         fixer: 'Javító (Karbantartó)',
+        site_leader: 'Terület vezető',
     } as any;
 
     const roleName = roleNames[data.role] || data.role;
@@ -484,6 +486,97 @@ Ezt a linket csak egyszer tudod felhasználni.
 
 ---
 Ez egy automatikus értesítő email a 3S Ellenőrző Rendszerből.
+    `.trim();
+}
+
+export type AuditResultSummaryData = {
+    siteName: string;
+    auditDate: string;
+    participants: string[];
+    auditUrl: string;
+    results: Array<{
+        checkText: string;
+        resultLabel: 'OK' | 'NOK' | 'N/A';
+        comment?: string;
+        imageUrls?: string[];
+    }>;
+};
+
+export function renderAuditResultSummaryEmail(data: AuditResultSummaryData): string {
+    const rows = data.results
+        .map((item) => {
+            const statusColor =
+                item.resultLabel === 'OK'
+                    ? '#16a34a'
+                    : item.resultLabel === 'NOK'
+                        ? '#dc2626'
+                        : '#6b7280';
+            const images = item.imageUrls && item.imageUrls.length > 0
+                ? `<p style="margin: 6px 0 0 0; font-size: 13px;">Képek: ${item.imageUrls
+                    .map((url) => `<a href="${url}">${url}</a>`)
+                    .join('<br/>')}</p>`
+                : '';
+
+            return `
+                <div class="audit-item">
+                    <h3>${item.checkText}</h3>
+                    <p><strong style="color:${statusColor}">${item.resultLabel}</strong></p>
+                    ${item.comment ? `<p>Komment: ${item.comment}</p>` : ''}
+                    ${images}
+                </div>
+            `;
+        })
+        .join('');
+
+    const content = `
+        <div class="content">
+            <h2>Ellenőrzési összefoglaló</h2>
+            <p>Egy ellenőrzés lezárásra került.</p>
+            <div class="info-box">
+                <strong>Terület</strong>
+                <span>${data.siteName}</span>
+            </div>
+            <div class="info-box">
+                <strong>Dátum</strong>
+                <span>${data.auditDate}</span>
+            </div>
+            <div class="info-box">
+                <strong>Résztvevők</strong>
+                <span>${data.participants.join(', ')}</span>
+            </div>
+            ${rows}
+            <center>
+                <a href="${data.auditUrl}" class="button">Audit megnyitása</a>
+            </center>
+        </div>
+    `;
+
+    return emailLayout(content);
+}
+
+export function renderAuditResultSummaryText(data: AuditResultSummaryData): string {
+    const resultLines = data.results
+        .map((item) => {
+            const images = item.imageUrls && item.imageUrls.length > 0
+                ? `\n  Képek:\n  ${item.imageUrls.join('\n  ')}`
+                : '';
+            return `- ${item.checkText}: ${item.resultLabel}${item.comment ? `\n  Komment: ${item.comment}` : ''}${images}`;
+        })
+        .join('\n');
+
+    return `
+3S Ellenőrző Rendszer
+Ellenőrzési összefoglaló
+
+Terület: ${data.siteName}
+Dátum: ${data.auditDate}
+Résztvevők: ${data.participants.join(', ')}
+
+Eredmények:
+${resultLines}
+
+Audit link:
+${data.auditUrl}
     `.trim();
 }
 

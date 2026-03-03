@@ -35,13 +35,24 @@ export default async function Home() {
 
   const isAdmin = currentUser.role === 'admin';
   const isFixer = currentUser.role === 'fixer';
+  const isSiteLeader = currentUser.role === 'site_leader';
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  const monthStartStr = monthStart.toISOString().split('T')[0];
+  const todayStr = new Date().toISOString().split('T')[0];
 
   return (
     <Container className="flex flex-col gap-4 md:gap-6 max-w-6xl pb-20">
       <div>
         <h1 className="text-3xl font-bold">Üdvözlünk, {currentUser.fullName}!</h1>
         <p className="text-muted-foreground">
-          {isAdmin ? 'Admin irányítópult' : isFixer ? 'Karbantartó (Fixer) irányítópult' : 'Auditor irányítópult'}
+          {isAdmin
+            ? 'Admin irányítópult'
+            : isFixer
+              ? 'Karbantartó (Fixer) irányítópult'
+              : isSiteLeader
+                ? 'Terület vezető irányítópult'
+                : 'Auditor irányítópult'}
         </p>
       </div>
 
@@ -260,6 +271,22 @@ export default async function Home() {
                   <Button variant="outline" className="w-full justify-start" size="sm">
                     <PlusIcon className="h-4 w-4 mr-2" />
                     Meghívás
+                  </Button>
+                </Link>
+              </>
+            )}
+            {isSiteLeader && (
+              <>
+                <Link href="/audits">
+                  <Button variant="outline" className="w-full justify-start" size="sm">
+                    <ListIcon className="h-4 w-4 mr-2" />
+                    Saját területek auditjai
+                  </Button>
+                </Link>
+                <Link href={`/api/admin/reports/export?startDate=${monthStartStr}&endDate=${todayStr}`}>
+                  <Button variant="outline" className="w-full justify-start" size="sm">
+                    <TrendingUpIcon className="h-4 w-4 mr-2" />
+                    Havi export (CSV)
                   </Button>
                 </Link>
               </>

@@ -1,18 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import Audit from "@/lib/db/models/Audit";
+import Site from "@/lib/db/models/Site";
 import { getCurrentUser } from "@/lib/auth";
+import { ObjectId } from "mongodb";
 
 export async function GET(request: NextRequest) {
     try {
         const currentUser = await getCurrentUser();
-        if (!currentUser || currentUser.role !== 'admin') {
+        if (!currentUser || !['admin', 'site_leader'].includes(currentUser.role)) {
             return new NextResponse('Unauthorized', { status: 401 });
         }
 
         const searchParams = request.nextUrl.searchParams;
         const startDateStr = searchParams.get('startDate');
         const endDateStr = searchParams.get('endDate');
+        const siteId = searchParams.get('siteId');
+        const status = searchParams.get('status');
 
         if (!startDateStr || !endDateStr) {
             return new NextResponse('Missing date range', { status: 400 });
@@ -26,10 +30,34 @@ export async function GET(request: NextRequest) {
 
         await connectDB();
 
-        // Fetch Audits
-        const audits = await Audit.find({
+        const query: any = {
             onDate: { $gte: startDate, $lte: endDate }
-        })
+        };
+
+        if (siteId && ObjectId.isValid(siteId)) {
+            query.site = new ObjectId(siteId);
+        }
+
+        if (status === 'scheduled') {
+            query.startTime = { $exists: false };
+        } else if (status === 'in_progress') {
+            query.startTime = { $exists: true, $ne: null };
+            query.endTime = { $exists: false };
+        } else if (status === 'completed') {
+            query.startTime = { $exists: true, $ne: null };
+            query.endTime = { $exists: true, $ne: null };
+        }
+
+        if (currentUser.role === 'site_leader') {
+            const leaderSites = await Site.find({ siteLeaders: new ObjectId(currentUser.id) }).select('_id').lean().exec();
+            const leaderSiteIds = leaderSites.map((s: any) => s._id);
+            query.site = query.site
+                ? { $in: leaderSiteIds.filter((id: any) => id.toString() === query.site.toString()) }
+                : { $in: leaderSiteIds };
+        }
+
+        // Fetch Audits
+        const audits = await Audit.find(query)
         .populate('site', 'name')
         .populate('participants', 'fullName')
         .sort({ onDate: -1 })

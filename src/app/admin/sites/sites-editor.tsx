@@ -13,6 +13,8 @@ import { toast } from "sonner"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
+import dayjs from "@/lib/dayjs"
 
 // Check Card Component
 const CheckCard = ({ 
@@ -133,12 +135,30 @@ const CheckCard = ({
 };
 
 
-const SelectedEditor = ({ site, level }: { site: ProcessedSite | null, level: number }) => {
+type NotificationUser = { _id: string; fullName: string; email: string };
+
+const SelectedEditor = ({
+    site,
+    level,
+    siteLeaders,
+    admins,
+}: {
+    site: ProcessedSite | null,
+    level: number,
+    siteLeaders: NotificationUser[],
+    admins: NotificationUser[],
+}) => {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const [name, setName] = useState(site?.name || "");
     const [children, setChildren] = useState(site?.children)
     const [checks, setChecks] = useState(site?.checks)
+    const [selectedSiteLeaders, setSelectedSiteLeaders] = useState<string[]>(site?.siteLeaders || []);
+    const [resultEmailListText, setResultEmailListText] = useState((site?.resultEmailList || []).join(', '));
+    const [selectedResultAdmins, setSelectedResultAdmins] = useState<string[]>(site?.resultAdminRecipients || []);
+    const [notifyAdminsOnResult, setNotifyAdminsOnResult] = useState(Boolean(site?.notifyAdminsOnResult));
+    const [siteLeaderFilter, setSiteLeaderFilter] = useState('');
+    const [adminFilter, setAdminFilter] = useState('');
 
     const mode = useMemo<("children" | "checks" | undefined)>(() => {
         if (!site) return undefined
@@ -158,25 +178,60 @@ const SelectedEditor = ({ site, level }: { site: ProcessedSite | null, level: nu
     const nameChanged = useMemo(() => {
         return site?.name !== name
     }, [site?.name, name])
+    const notificationChanged = useMemo(() => {
+        const currentLeaders = (site?.siteLeaders || []).slice().sort().join(',');
+        const nextLeaders = selectedSiteLeaders.slice().sort().join(',');
+        const currentEmails = (site?.resultEmailList || []).map((e) => e.trim().toLowerCase()).sort().join(',');
+        const nextEmails = resultEmailListText
+            .split(/[,\n;]/)
+            .map((e) => e.trim().toLowerCase())
+            .filter(Boolean)
+            .sort()
+            .join(',');
+        const currentAdmins = (site?.resultAdminRecipients || []).slice().sort().join(',');
+        const nextAdmins = selectedResultAdmins.slice().sort().join(',');
+        const currentNotifyAdmins = Boolean(site?.notifyAdminsOnResult);
+        return currentLeaders !== nextLeaders || currentEmails !== nextEmails || currentAdmins !== nextAdmins || currentNotifyAdmins !== notifyAdminsOnResult;
+    }, [site?.siteLeaders, selectedSiteLeaders, site?.resultEmailList, resultEmailListText, site?.resultAdminRecipients, selectedResultAdmins, site?.notifyAdminsOnResult, notifyAdminsOnResult]);
 
     useEffect(() => {
         setName(site?.name || "")
         setChildren(site?.children)
         setChecks(site?.checks)
+        setSelectedSiteLeaders(site?.siteLeaders || [])
+        setResultEmailListText((site?.resultEmailList || []).join(', '))
+        setSelectedResultAdmins(site?.resultAdminRecipients || [])
+        setNotifyAdminsOnResult(Boolean(site?.notifyAdminsOnResult))
+        setSiteLeaderFilter('')
+        setAdminFilter('')
     }, [site])
 
     const undoChanges = useCallback(() => {
         setName(site?.name || "")
         setChildren(site?.children)
         setChecks(site?.checks)
+        setSelectedSiteLeaders(site?.siteLeaders || [])
+        setResultEmailListText((site?.resultEmailList || []).join(', '))
+        setSelectedResultAdmins(site?.resultAdminRecipients || [])
+        setNotifyAdminsOnResult(Boolean(site?.notifyAdminsOnResult))
+        setSiteLeaderFilter('')
+        setAdminFilter('')
     }, [site])
 
     const handleSave = useCallback(async () => {
-        if (!site || !nameChanged) return;
+        if (!site || (!nameChanged && !notificationChanged)) return;
 
         startTransition(async () => {
             const formData = new FormData();
             formData.append('name', name);
+            for (const leaderId of selectedSiteLeaders) {
+                formData.append('siteLeaders', leaderId);
+            }
+            for (const adminId of selectedResultAdmins) {
+                formData.append('resultAdminRecipients', adminId);
+            }
+            formData.append('resultEmailList', resultEmailListText);
+            formData.append('notifyAdminsOnResult', notifyAdminsOnResult ? 'true' : 'false');
             
             const result = await updateSiteAction(site._id, { success: false }, formData);
             
@@ -187,7 +242,7 @@ const SelectedEditor = ({ site, level }: { site: ProcessedSite | null, level: nu
                 toast.error(result.message || 'Hiba történt');
             }
         });
-    }, [site, name, nameChanged, router]);
+    }, [site, name, nameChanged, notificationChanged, selectedSiteLeaders, resultEmailListText, selectedResultAdmins, notifyAdminsOnResult, router]);
 
     const handleDelete = useCallback(async () => {
         if (!site) return;
@@ -215,6 +270,26 @@ const SelectedEditor = ({ site, level }: { site: ProcessedSite | null, level: nu
             </div>
         );
     }
+
+    const filteredSiteLeaders = siteLeaders.filter((leader) => {
+        if (!siteLeaderFilter.trim()) return true;
+        const token = siteLeaderFilter.trim().toLowerCase();
+        return (
+            leader.fullName.toLowerCase().includes(token) ||
+            leader.email.toLowerCase().includes(token)
+        );
+    });
+
+    const filteredAdmins = admins.filter((admin) => {
+        if (!adminFilter.trim()) return true;
+        const token = adminFilter.trim().toLowerCase();
+        return (
+            admin.fullName.toLowerCase().includes(token) ||
+            admin.email.toLowerCase().includes(token)
+        );
+    });
+    const monthStartStr = dayjs().startOf('month').format('YYYY-MM-DD');
+    const todayStr = dayjs().format('YYYY-MM-DD');
 
     return (
         <div className="flex flex-col gap-4">
@@ -339,6 +414,150 @@ const SelectedEditor = ({ site, level }: { site: ProcessedSite | null, level: nu
                 </div>
             ) : null}
 
+            <div className="flex flex-col gap-3 border rounded-md p-3">
+                <Label>Összefoglaló email beállítások</Label>
+                <div className="flex flex-col gap-2">
+                    <p className="text-sm text-muted-foreground">Terület vezetők hozzárendelése</p>
+                    <div className="flex flex-col gap-2">
+                        <Input
+                            value={siteLeaderFilter}
+                            onChange={(e) => setSiteLeaderFilter(e.target.value)}
+                            placeholder="Keresés név vagy email alapján"
+                        />
+                        <div className="flex gap-2">
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setSelectedSiteLeaders(filteredSiteLeaders.map((l) => l._id))}
+                            >
+                                Szűrt kijelölése
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                    setSelectedSiteLeaders((prev) =>
+                                        prev.filter((id) => !filteredSiteLeaders.some((l) => l._id === id))
+                                    )
+                                }
+                            >
+                                Szűrt törlése
+                            </Button>
+                        </div>
+                    </div>
+                    {siteLeaders.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">Nincs elérhető `site_leader` felhasználó.</p>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            {filteredSiteLeaders.map((leader) => (
+                                <label key={leader._id} className="flex items-center gap-2 text-sm">
+                                    <Checkbox
+                                        checked={selectedSiteLeaders.includes(leader._id)}
+                                        onCheckedChange={(checked) => {
+                                            setSelectedSiteLeaders((prev) => {
+                                                if (checked) return Array.from(new Set([...prev, leader._id]));
+                                                return prev.filter((id) => id !== leader._id);
+                                            });
+                                        }}
+                                    />
+                                    <span>{leader.fullName} ({leader.email})</span>
+                                </label>
+                            ))}
+                        </div>
+                    )}
+                </div>
+                <div className="flex flex-col gap-2">
+                    <Label htmlFor="resultEmailList">Extra email címek (vesszővel elválasztva)</Label>
+                    <Input
+                        id="resultEmailList"
+                        value={resultEmailListText}
+                        onChange={(e) => setResultEmailListText(e.target.value)}
+                        placeholder="vezeto1@ceg.hu, vezeto2@ceg.hu"
+                    />
+                </div>
+                <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                        checked={notifyAdminsOnResult}
+                        onCheckedChange={(checked) => setNotifyAdminsOnResult(Boolean(checked))}
+                    />
+                    <span>Adminok is kapjanak összefoglaló emailt</span>
+                </label>
+                <div className="flex flex-col gap-2">
+                    <p className="text-sm text-muted-foreground">Kijelölt admin címzettek</p>
+                    <div className="flex flex-col gap-2">
+                        <Input
+                            value={adminFilter}
+                            onChange={(e) => setAdminFilter(e.target.value)}
+                            placeholder="Keresés admin név vagy email alapján"
+                        />
+                        <div className="flex gap-2">
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setSelectedResultAdmins(filteredAdmins.map((a) => a._id))}
+                            >
+                                Szűrt kijelölése
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                    setSelectedResultAdmins((prev) =>
+                                        prev.filter((id) => !filteredAdmins.some((a) => a._id === id))
+                                    )
+                                }
+                            >
+                                Szűrt törlése
+                            </Button>
+                        </div>
+                    </div>
+                    {admins.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">Nincs admin felhasználó.</p>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            {filteredAdmins.map((admin) => (
+                                <label key={admin._id} className="flex items-center gap-2 text-sm">
+                                    <Checkbox
+                                        checked={selectedResultAdmins.includes(admin._id)}
+                                        onCheckedChange={(checked) => {
+                                            setSelectedResultAdmins((prev) => {
+                                                if (checked) return Array.from(new Set([...prev, admin._id]));
+                                                return prev.filter((id) => id !== admin._id);
+                                            });
+                                        }}
+                                    />
+                                    <span>{admin.fullName} ({admin.email})</span>
+                                </label>
+                            ))}
+                        </div>
+                    )}
+                </div>
+                {notifyAdminsOnResult && admins.length > 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                        Jelenlegi admin címzettek: {admins.map((a) => a.fullName).join(', ')}
+                    </p>
+                ) : null}
+            </div>
+
+            <div className="flex flex-col gap-2 border rounded-md p-3">
+                <Label>Terület audit naplók</Label>
+                <p className="text-xs text-muted-foreground">
+                    Nyisd meg a kiválasztott terület audit listáját vagy exportáld CSV-ben.
+                </p>
+                <div className="flex gap-2">
+                    <Link href={`/admin/audits?siteId=${site._id}`}>
+                        <Button type="button" variant="outline" size="sm">Audit lista megnyitása</Button>
+                    </Link>
+                    <Link href={`/api/admin/reports/export?siteId=${site._id}&startDate=${monthStartStr}&endDate=${todayStr}`}>
+                        <Button type="button" size="sm">Audit export (CSV)</Button>
+                    </Link>
+                </div>
+            </div>
+
             <div className="flex flex-row gap-2 items-center justify-end">
                 <Button 
                     variant="destructive" 
@@ -350,7 +569,7 @@ const SelectedEditor = ({ site, level }: { site: ProcessedSite | null, level: nu
                 </Button>
                 <Button 
                     variant="outline" 
-                    disabled={!nameChanged || isPending} 
+                    disabled={(!nameChanged && !notificationChanged) || isPending} 
                     onClick={undoChanges}
                 >
                     <UndoIcon className="w-4 h-4 mr-2" />
@@ -358,7 +577,7 @@ const SelectedEditor = ({ site, level }: { site: ProcessedSite | null, level: nu
                 </Button>
                 <Button 
                     variant="default" 
-                    disabled={!nameChanged || isPending}
+                    disabled={(!nameChanged && !notificationChanged) || isPending}
                     onClick={handleSave}
                 >
                     <SaveIcon className="w-4 h-4 mr-2" />
@@ -370,9 +589,13 @@ const SelectedEditor = ({ site, level }: { site: ProcessedSite | null, level: nu
 }
 
 export default function SitesEditor({
-    sites
+    sites,
+    siteLeaders,
+    admins,
 }: {
     sites: ProcessedSite[]
+    siteLeaders: NotificationUser[]
+    admins: NotificationUser[]
 }) {
     const searchParams = useSearchParams();
     const selectedParam = searchParams.get('selected');
@@ -453,7 +676,7 @@ export default function SitesEditor({
                 } />
 
             <div className="flex-4 min-w-fit">
-                <SelectedEditor site={selectedSite} level={selectedSiteLevel} />
+                <SelectedEditor site={selectedSite} level={selectedSiteLevel} siteLeaders={siteLeaders} admins={admins} />
             </div>
         </div>
     )

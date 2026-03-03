@@ -6,7 +6,7 @@ export const registerSchema = z.object({
         .string()
         .min(8, 'A jelszónak legalább 8 karakter hosszúnak kell lennie')
         .max(128, 'A jelszó nem lehet hosszabb 128 karakternél'),
-    role: z.enum(['auditor', 'fixer', 'admin']).default('auditor'),
+    role: z.enum(['auditor', 'fixer', 'admin', 'site_leader']).default('auditor'),
     fullName: z.string().min(1, 'A név nem lehet üres'),
 });
 
@@ -16,6 +16,7 @@ export const userEditSchema = z.object({
     fullName: z.string().optional(),
     email: z.string().email('Érvényes email címet adj meg').optional(),
     password: z.string().optional(),
+    role: z.enum(['auditor', 'fixer', 'admin', 'site_leader']).optional(),
 });
 
 export type UserEditInput = z.infer<typeof userEditSchema>;

@@ -17,6 +17,8 @@ export const getRoleTranslation = (role: string) => {
       return 'Auditor';
     case 'fixer':
       return 'Fixer';
+    case 'site_leader':
+      return 'Terület vezető';
     default:
       return 'Felhasználó';
   }

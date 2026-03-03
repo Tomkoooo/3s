@@ -2,6 +2,7 @@
 
 import { connectDB } from "@/lib/db";
 import Site from "@/lib/db/models/Site";
+import User from "@/lib/db/models/User";
 import { siteSchema } from "@/lib/validation";
 import { getCurrentUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
@@ -31,6 +32,10 @@ export async function createSiteAction(
         }
 
         const rawName = formData.get('name');
+        const rawSiteLeaders = formData.getAll('siteLeaders').map((v) => String(v)).filter(Boolean);
+        const rawResultEmailList = formData.get('resultEmailList')?.toString() || '';
+        const rawResultAdminRecipients = formData.getAll('resultAdminRecipients').map((v) => String(v)).filter(Boolean);
+        const rawNotifyAdminsOnResult = formData.get('notifyAdminsOnResult')?.toString() === 'true';
         const rawLevel = formData.get('level');
         const rawParentId = formData.get('parentId');
 
@@ -133,6 +138,13 @@ export async function updateSiteAction(
         }
 
         site.name = rawName.trim();
+        site.siteLeaders = rawSiteLeaders as any;
+        site.resultEmailList = rawResultEmailList
+            .split(/[,\n;]/)
+            .map((email) => email.trim().toLowerCase())
+            .filter(Boolean);
+        site.resultAdminRecipients = rawResultAdminRecipients as any;
+        site.notifyAdminsOnResult = rawNotifyAdminsOnResult;
         await site.save();
 
         revalidatePath('/admin/sites');
@@ -231,7 +243,7 @@ export async function getTopLevelSites() {
         const Check = (await import('@/lib/db/models/Check')).default;
 
         const sites = await Site.find({ level: 0 })
-            .select('_id name level parentId children checks')
+            .select('_id name level parentId children checks siteLeaders resultEmailList resultAdminRecipients notifyAdminsOnResult')
             .lean()
             .exec();
 
@@ -245,6 +257,10 @@ export async function getTopLevelSites() {
                     name: site.name,
                     level: site.level,
                     parentId: site.parentId?.toString(),
+                    siteLeaders: (site.siteLeaders || []).map((id: any) => id.toString()),
+                    resultEmailList: site.resultEmailList || [],
+                    resultAdminRecipients: (site.resultAdminRecipients || []).map((id: any) => id.toString()),
+                    notifyAdminsOnResult: Boolean(site.notifyAdminsOnResult),
                     children: [],
                     checks: [],
                 };
@@ -269,7 +285,7 @@ export async function getTopLevelSites() {
                 if (site.children && site.children.length > 0) {
                     const childIds = site.children.map((id: any) => id.toString());
                     const children = await Site.find({ _id: { $in: childIds } })
-                        .select('_id name level parentId children checks')
+                        .select('_id name level parentId children checks siteLeaders resultEmailList resultAdminRecipients notifyAdminsOnResult')
                         .lean()
                         .exec();
                     
@@ -300,6 +316,32 @@ export async function getSiteById(siteId: string) {
     } catch (error) {
         console.error('Get site by id error:', error);
         return null;
+    }
+}
+
+export async function getSiteNotificationUsers() {
+    try {
+        await connectDB();
+        const [siteLeaders, admins] = await Promise.all([
+            User.find({ role: 'site_leader' }).select('_id fullName email').sort({ fullName: 1 }).lean().exec(),
+            User.find({ role: 'admin' }).select('_id fullName email').sort({ fullName: 1 }).lean().exec(),
+        ]);
+
+        return {
+            siteLeaders: siteLeaders.map((u: any) => ({
+                _id: u._id.toString(),
+                fullName: u.fullName,
+                email: u.email,
+            })),
+            admins: admins.map((u: any) => ({
+                _id: u._id.toString(),
+                fullName: u.fullName,
+                email: u.email,
+            })),
+        };
+    } catch (error) {
+        console.error('Get site notification users error:', error);
+        return { siteLeaders: [], admins: [] };
     }
 }
 

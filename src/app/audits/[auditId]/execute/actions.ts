@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/db";
 import Audit from "@/lib/db/models/Audit";
 import { getCurrentUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { sendAuditResultSummaryForCompletedAudit } from "@/lib/email/audit-email";
 
 /**
  * Audit indítása (status: in_progress, startTime)
@@ -122,6 +123,11 @@ export async function submitAuditResultAction(
         audit.status = 'completed';
         audit.endTime = new Date();
         await audit.save();
+
+        // Send summary emails in background; audit completion must not fail due to email issues.
+        sendAuditResultSummaryForCompletedAudit(auditId).catch((error) => {
+            console.error('[EMAIL] Failed to send audit summary email:', error);
+        });
 
         revalidatePath(`/audits/${auditId}`);
         revalidatePath('/audits');

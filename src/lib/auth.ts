@@ -309,6 +309,9 @@ export const updateUser = async (userId: string, input: UserEditInput) => {
         user.hashedPassword = await hash(input.password, SALT_ROUNDS);
         user.passwordChangedAt = new Date();
     }
+    if (input.role) {
+        user.role = input.role;
+    }
     await user.save();
     return user;
 }

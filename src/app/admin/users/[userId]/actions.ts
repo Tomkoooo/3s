@@ -5,7 +5,7 @@ import { updateUser } from "@/lib/auth";
 
 export type UserEditFormState = {
     success: boolean;
-    fieldErrors?: { fullName?: string[]; email?: string[]; password?: string[] };
+    fieldErrors?: { fullName?: string[]; email?: string[]; password?: string[]; role?: string[] };
     message?: string;
 };
 
@@ -18,6 +18,7 @@ export async function updateUserAction(
         fullName: formData.get("fullName")?.toString() || undefined,
         email: formData.get("email")?.toString() || undefined,
         password: formData.get("password")?.toString() || undefined,
+        role: formData.get("role")?.toString() || undefined,
     };
 
     // Ne küldjünk üres jelszót

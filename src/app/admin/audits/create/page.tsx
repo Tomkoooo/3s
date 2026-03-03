@@ -8,6 +8,7 @@ export default async function CreateAuditPage() {
         getAuditableSites(),
         getAuditors(),
     ]);
+    const adminRecipients = auditors.filter((u: any) => u.role === 'admin');
 
     return (
         <Container className="flex-1 flex flex-col gap-4 max-w-2xl">
@@ -19,7 +20,12 @@ export default async function CreateAuditPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <AuditForm sites={sites} auditors={auditors} mode="create" />
+                    <AuditForm
+                        sites={sites}
+                        auditors={auditors}
+                        adminRecipients={adminRecipients}
+                        mode="create"
+                    />
                 </CardContent>
             </Card>
         </Container>

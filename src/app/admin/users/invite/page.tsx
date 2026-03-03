@@ -8,7 +8,7 @@ import { connectDB } from "@/lib/db";
 
 export type ClientInvite = {
     _id: string
-    role: 'auditor' | 'fixer' | 'admin'
+    role: 'auditor' | 'fixer' | 'admin' | 'site_leader'
     createdAt: string
     expiresAt: string
     comment: string

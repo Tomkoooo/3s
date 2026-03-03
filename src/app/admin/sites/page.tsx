@@ -1,6 +1,6 @@
 import Container from "@/components/container";
 import SitesEditor from "./sites-editor";
-import { getTopLevelSites } from "./actions";
+import { getSiteNotificationUsers, getTopLevelSites } from "./actions";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { PlusIcon } from "lucide-react";
@@ -17,10 +17,17 @@ export type ProcessedSite = {
         description?: string | null;
         referenceImage?: string | null;
     }>,
+    siteLeaders?: string[],
+    resultEmailList?: string[],
+    resultAdminRecipients?: string[],
+    notifyAdminsOnResult?: boolean,
 }
 
 export default async function SitesPage() {
-    const sites = await getTopLevelSites();
+    const [sites, notificationUsers] = await Promise.all([
+        getTopLevelSites(),
+        getSiteNotificationUsers(),
+    ]);
     
     // Sites are already processed by getTopLevelSites with serialized checks
     const processedSites: ProcessedSite[] = sites as ProcessedSite[];
@@ -55,7 +62,11 @@ export default async function SitesPage() {
                     </Link>
                 </div>
             ) : (
-                <SitesEditor sites={processedSites} />
+                <SitesEditor
+                    sites={processedSites}
+                    siteLeaders={notificationUsers.siteLeaders}
+                    admins={notificationUsers.admins}
+                />
             )}
         </Container>
     )

@@ -1,7 +1,7 @@
 import { Schema, models, model, Document, Model } from "mongoose";
 
 export interface IInvite {
-    role: 'auditor' | 'fixer' | 'admin';
+    role: 'auditor' | 'fixer' | 'admin' | 'site_leader';
     expiresAt: Date;
     createdAt: Date;
     comment: string;
@@ -10,7 +10,7 @@ export interface IInvite {
 const inviteSchema = new Schema<IInvite>({
     role: {
         type: String,
-        enum: ['auditor', 'fixer', 'admin'],
+        enum: ['auditor', 'fixer', 'admin', 'site_leader'],
         default: 'auditor',
     },
     expiresAt: {

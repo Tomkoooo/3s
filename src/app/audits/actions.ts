@@ -2,6 +2,7 @@
 
 import { connectDB } from "@/lib/db";
 import Audit from "@/lib/db/models/Audit";
+import Site from "@/lib/db/models/Site";
 import { getCurrentUser } from "@/lib/auth";
 import { ObjectId } from "mongodb";
 import dayjs from "@/lib/dayjs";
@@ -51,6 +52,7 @@ export async function getMyAudits(filters?: {
     dateFrom?: string;
     dateTo?: string;
     status?: 'scheduled' | 'in_progress' | 'completed';
+    siteId?: string;
 }) {
     try {
         const currentUser = await getCurrentUser();
@@ -74,6 +76,10 @@ export async function getMyAudits(filters?: {
                     ] 
                 } 
             };
+        } else if (currentUser.role === 'site_leader') {
+            const leaderSites = await Site.find({ siteLeaders: new ObjectId(currentUser.id) }).select('_id').lean().exec();
+            const leaderSiteIds = leaderSites.map((s: any) => s._id);
+            query.site = { $in: leaderSiteIds };
         } else {
             // Auditors only see their own audits
             query.participants = new ObjectId(currentUser.id);
@@ -86,6 +92,14 @@ export async function getMyAudits(filters?: {
             }
             if (filters.dateTo) {
                 query.onDate.$lte = new Date(filters.dateTo);
+            }
+        }
+        if (filters?.siteId && ObjectId.isValid(filters.siteId)) {
+            const requestedSiteId = new ObjectId(filters.siteId);
+            if (query.site && query.site.$in && Array.isArray(query.site.$in)) {
+                query.site = { $in: query.site.$in.filter((id: any) => id.toString() === requestedSiteId.toString()) };
+            } else {
+                query.site = requestedSiteId;
             }
         }
 
@@ -218,12 +232,21 @@ export async function getMyAuditById(auditId: string) {
         );
         const isAdmin = currentUser.role === 'admin';
         const isFixer = currentUser.role === 'fixer';
+        const isSiteLeader = currentUser.role === 'site_leader';
         
         // Fixer can view if there are issues
         if (isFixer) {
             const hasIssues = audit.result?.some((r: any) => r.pass === false || r.result === false);
             if (!hasIssues) {
                 return null; // Don't show healthy audits to fixers
+            }
+        } else if (isSiteLeader) {
+            const hasSiteAccess = await Site.exists({
+                _id: new ObjectId(audit.site._id.toString()),
+                siteLeaders: new ObjectId(currentUser.id),
+            });
+            if (!hasSiteAccess) {
+                return null;
             }
         } else if (!isParticipant && !isAdmin) {
             return null; // Nincs jogosultsága megtekinteni
@@ -315,6 +338,7 @@ export async function getDashboardStats() {
             // User statisztikák (auditor/fixer)
             const userId = new ObjectId(currentUser.id);
             const isFixer = currentUser.role === 'fixer';
+            const isSiteLeader = currentUser.role === 'site_leader';
             
             let myAudits: any[] = [];
             
@@ -330,6 +354,12 @@ export async function getDashboardStats() {
                         } 
                     }
                  }).lean();
+            } else if (isSiteLeader) {
+                const leaderSites = await Site.find({ siteLeaders: userId }).select('_id').lean().exec();
+                const leaderSiteIds = leaderSites.map((s: any) => s._id);
+                myAudits = await Audit.find({
+                    site: { $in: leaderSiteIds },
+                }).lean();
             } else {
                 // Auditor sees own audits
                 myAudits = await Audit.find({

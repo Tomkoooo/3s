@@ -3,7 +3,7 @@ import { Schema, models, model, type Document, type Model } from "mongoose";
 export interface IUser {
     email: string;
     fullName: string;
-    role: 'auditor' | 'fixer' | 'admin';
+    role: 'auditor' | 'fixer' | 'admin' | 'site_leader';
     hashedPassword: string;
     createdAt: Date;
     passwordChangedAt: Date;
@@ -24,7 +24,7 @@ const userSchema = new Schema<IUser>({
     },
     role: {
         type: String,
-        enum: ['auditor', 'fixer', 'admin'],
+        enum: ['auditor', 'fixer', 'admin', 'site_leader'],
         default: 'auditor',
     },
     hashedPassword: {

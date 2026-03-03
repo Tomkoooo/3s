@@ -24,7 +24,7 @@ export async function generateInviteAction(role: string, comment: string, email?
     const h = await headers();
     const baseUrl = process.env.BASE_URL || new URL(h.get('x-url') ?? '').origin;
 
-    const validRoles = ['auditor', 'fixer', 'admin'] as const;
+    const validRoles = ['auditor', 'fixer', 'admin', 'site_leader'] as const;
     type Role = typeof validRoles[number];
     const isRole = (value: string): value is Role => (validRoles as readonly string[]).includes(value);
     if (!isRole(role)) {

@@ -6,12 +6,35 @@ import Link from "next/link";
 import { CalendarIcon, LayoutListIcon, CheckCircle2Icon, ClockIcon } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import dayjs from "@/lib/dayjs";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
-export default async function MyAuditsPage() {
-    const audits = await getMyAudits();
+export default async function MyAuditsPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ dateFrom?: string; dateTo?: string; status?: 'scheduled' | 'in_progress' | 'completed'; siteId?: string }>;
+}) {
+    const params = await searchParams;
+    const audits = await getMyAudits({
+        dateFrom: params.dateFrom,
+        dateTo: params.dateTo,
+        status: params.status,
+        siteId: params.siteId,
+    });
     const currentUser = await getCurrentUser();
 
     const isFixer = currentUser?.role === 'fixer';
+    const isSiteLeader = currentUser?.role === 'site_leader';
+    const uniqueSites = Array.from(
+        new Map(
+            audits
+                .filter((a: any) => a.site?._id)
+                .map((a: any) => [a.site._id, a.site])
+        ).values()
+    ) as Array<{ _id: string; name: string }>;
+    const today = new Date().toISOString().split('T')[0];
+    const monthStart = dayjs().startOf('month').format('YYYY-MM-DD');
+    const monthEnd = dayjs().endOf('month').format('YYYY-MM-DD');
     const now = dayjs();
     const startOfWeek = now.startOf('week');
     const endOfWeek = now.endOf('week');
@@ -34,7 +57,11 @@ export default async function MyAuditsPage() {
                 <div>
                     <h1 className="text-2xl font-bold">{isFixer ? 'Javítandó feladatok' : 'Ellenőrzéseim'}</h1>
                     <p className="text-sm text-muted-foreground">
-                        {isFixer ? 'Az alábbi ellenőrzések során hibákat találtak.' : 'Itt találod a hozzád rendelt ellenőrzéseket.'}
+                        {isFixer
+                            ? 'Az alábbi ellenőrzések során hibákat találtak.'
+                            : isSiteLeader
+                                ? 'Itt találod a hozzád rendelt területek ellenőrzéseit.'
+                                : 'Itt találod a hozzád rendelt ellenőrzéseket.'}
                     </p>
                 </div>
                 <Link href="/my-account/calendar">
@@ -44,6 +71,55 @@ export default async function MyAuditsPage() {
                     </Button>
                 </Link>
             </div>
+
+            {isSiteLeader && (
+                <form className="grid grid-cols-1 md:grid-cols-5 gap-2 border rounded-md p-3">
+                    <div className="flex flex-col gap-1">
+                        <Label htmlFor="dateFrom">Kezdő dátum</Label>
+                        <Input id="dateFrom" name="dateFrom" type="date" defaultValue={params.dateFrom || monthStart} />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <Label htmlFor="dateTo">Záró dátum</Label>
+                        <Input id="dateTo" name="dateTo" type="date" defaultValue={params.dateTo || today} max={monthEnd} />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <Label htmlFor="status">Státusz</Label>
+                        <select
+                            id="status"
+                            name="status"
+                            defaultValue={params.status || ''}
+                            className="h-9 rounded-md border px-2 bg-background"
+                        >
+                            <option value="">Összes</option>
+                            <option value="scheduled">Tervezett</option>
+                            <option value="in_progress">Folyamatban</option>
+                            <option value="completed">Befejezett</option>
+                        </select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <Label htmlFor="siteId">Terület</Label>
+                        <select
+                            id="siteId"
+                            name="siteId"
+                            defaultValue={params.siteId || ''}
+                            className="h-9 rounded-md border px-2 bg-background"
+                        >
+                            <option value="">Összes</option>
+                            {uniqueSites.map((site) => (
+                                <option key={site._id} value={site._id}>{site.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="flex items-end gap-2">
+                        <Button type="submit" variant="outline">Szűrés</Button>
+                        <Link
+                            href={`/api/admin/reports/export?startDate=${params.dateFrom || monthStart}&endDate=${params.dateTo || today}&status=${params.status || ''}&siteId=${params.siteId || ''}`}
+                        >
+                            <Button type="button">Export CSV</Button>
+                        </Link>
+                    </div>
+                </form>
+            )}
 
             {audits.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed rounded-xl">

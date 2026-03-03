@@ -42,7 +42,7 @@ export const InviteBox = () => {
                         <SelectValue className="w-full" placeholder="Válassz szerepkört" />
                     </SelectTrigger>
                     <SelectContent>
-                        {["admin", "fixer", "auditor"].map((r) => (
+                        {["admin", "fixer", "auditor", "site_leader"].map((r) => (
                             <SelectItem key={r} value={r}>{getRoleTranslation(r)}</SelectItem>
                         ))}
                     </SelectContent>

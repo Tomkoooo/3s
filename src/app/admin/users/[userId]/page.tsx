@@ -23,7 +23,13 @@ export default async function UserEdit({ params }: { params: Promise<{ userId: s
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <UserEditForm user={user} currentUser={currentUser} updateAction={boundAction} cancelRedirectTo="/admin/users" />
+                    <UserEditForm
+                        user={user}
+                        currentUser={currentUser}
+                        updateAction={boundAction}
+                        cancelRedirectTo="/admin/users"
+                        canEditRole
+                    />
                 </CardContent>
             </Card>
         </Container>

@@ -134,6 +134,25 @@ export async function getAudits(filters?: {
     }
 }
 
+export async function getAllAuditSitesForFilter() {
+    try {
+        await connectDB();
+        const sites = await Site.find({})
+            .select('_id name parentId')
+            .sort({ name: 1 })
+            .lean()
+            .exec();
+
+        return sites.map((site: any) => ({
+            _id: site._id.toString(),
+            name: site.name,
+        }));
+    } catch (error) {
+        console.error('Get all audit sites for filter error:', error);
+        return [];
+    }
+}
+
 /**
  * Audit létrehozása
  */
@@ -151,6 +170,8 @@ export async function createAuditAction(
         const siteId = formData.get('siteId') as string;
         const onDate = formData.get('onDate') as string;
         const participantIds = formData.getAll('participants') as string[];
+        const summaryEmailListRaw = (formData.get('summaryEmailList') as string) || '';
+        const summaryAdminRecipientsRaw = formData.getAll('summaryAdminRecipients') as string[];
 
         // Validáció
         if (!siteId || !ObjectId.isValid(siteId)) {
@@ -272,11 +293,21 @@ export async function createAuditAction(
         }));
 
         // Új audit létrehozása
+        const summaryEmailList = summaryEmailListRaw
+            .split(/[,\n;]/)
+            .map((email) => email.trim().toLowerCase())
+            .filter(Boolean);
+        const summaryAdminRecipients = summaryAdminRecipientsRaw
+            .filter((id) => ObjectId.isValid(id))
+            .map((id) => new ObjectId(id));
+
         const newAudit = await Audit.create({
             site: new ObjectId(siteId),
             participants: validParticipants.map((id) => new ObjectId(id)),
             onDate: selectedDate,
             result: initialResults, // Checks másolva, de még nincs eredmény
+            summaryEmailList,
+            summaryAdminRecipients,
         });
 
         // Participants adatainak lekérése email küldéshez

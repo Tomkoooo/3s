@@ -68,6 +68,8 @@ export type IAudit = {
     endTime?: Date;
     status: 'scheduled' | 'in_progress' | 'completed';
     result: IAuditResult[];
+    summaryEmailList?: string[];
+    summaryAdminRecipients?: ObjectId[];
     timeWindowStart?: string;
     timeWindowEnd?: string;
 }
@@ -98,6 +100,17 @@ export const auditSchema = new Schema<IAudit>({
     result: {
         type: [auditResultSchema],
         required: true,
+    },
+    summaryEmailList: {
+        type: [String],
+        required: false,
+        default: [],
+    },
+    summaryAdminRecipients: {
+        type: [Schema.Types.ObjectId],
+        ref: "User",
+        required: false,
+        default: [],
     },
     timeWindowStart: {
         type: String, // "HH:MM" format

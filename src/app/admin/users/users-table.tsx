@@ -28,7 +28,7 @@ const createFilterFromQuery = (q: string): FilterQuery<IUser> => {
     const tokens = q.split(/\s+/).map(t => t.trim()).filter(Boolean)
     if (tokens.length === 0) return {}
     const isKnownRole = (value: string): value is IUser['role'] => (
-        value === "admin" || value === "auditor" || value === "fixer"
+        value === "admin" || value === "auditor" || value === "fixer" || value === "site_leader"
     )
     const roleTokens: IUser['role'][] = []
     const otherTokens: string[] = []

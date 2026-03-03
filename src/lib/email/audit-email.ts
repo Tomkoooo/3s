@@ -9,9 +9,17 @@ import { generateAuditIcs, type AuditEventData } from './ics-generator';
 import {
     renderAuditNotificationEmail,
     renderAuditNotificationText,
+    renderAuditResultSummaryEmail,
+    renderAuditResultSummaryText,
+    type AuditResultSummaryData,
     type AuditNotificationData,
 } from './templates';
 import { connectDB } from '../db';
+import Audit from '../db/models/Audit';
+import Site from '../db/models/Site';
+import User from '../db/models/User';
+import Check from '../db/models/Check';
+import { ObjectId } from 'mongodb';
 
 /**
  * Send audit notification email to a single participant
@@ -201,6 +209,122 @@ export async function sendBulkAuditNotifications(
     }
 
     return { totalSent, totalFailed, auditResults };
+}
+
+export async function sendAuditResultSummaryForCompletedAudit(
+    auditId: string
+): Promise<{ success: number; failed: number; recipients: number }> {
+    try {
+        await connectDB();
+
+        const audit = await Audit.findById(auditId).lean();
+        if (!audit) {
+            return { success: 0, failed: 0, recipients: 0 };
+        }
+
+        const site = await Site.findById(audit.site)
+            .select('name siteLeaders resultEmailList resultAdminRecipients notifyAdminsOnResult')
+            .lean();
+        if (!site) {
+            return { success: 0, failed: 0, recipients: 0 };
+        }
+
+        const participantIds = (audit.participants || []).map((id: any) => new ObjectId(id.toString()));
+        const participants = await User.find({ _id: { $in: participantIds } })
+            .select('fullName email')
+            .lean();
+
+        const checkIds = (audit.result || [])
+            .map((r: any) => r.check?.toString())
+            .filter(Boolean)
+            .map((id: string) => new ObjectId(id));
+        const checks = await Check.find({ _id: { $in: checkIds } }).select('_id text').lean();
+        const checkMap = new Map(checks.map((c: any) => [c._id.toString(), c.text]));
+
+        const siteLeaderIds = (site.siteLeaders || []).map((id: any) => new ObjectId(id.toString()));
+        const siteAdminIds = (site.resultAdminRecipients || []).map((id: any) => new ObjectId(id.toString()));
+        const summaryAdminIds = (audit.summaryAdminRecipients || []).map((id: any) => new ObjectId(id.toString()));
+        const siteLeaderUsers = siteLeaderIds.length > 0
+            ? await User.find({ _id: { $in: siteLeaderIds } }).select('email').lean()
+            : [];
+        const siteAdminUsers = siteAdminIds.length > 0
+            ? await User.find({ _id: { $in: siteAdminIds } }).select('email').lean()
+            : [];
+        const summaryAdminUsers = summaryAdminIds.length > 0
+            ? await User.find({ _id: { $in: summaryAdminIds } }).select('email').lean()
+            : [];
+        const notifyAdminUsers = site.notifyAdminsOnResult
+            ? await User.find({ role: 'admin' }).select('email').lean()
+            : [];
+
+        const recipients = Array.from(
+            new Set(
+                [
+                    ...siteLeaderUsers.map((u: any) => u.email),
+                    ...(site.resultEmailList || []),
+                    ...siteAdminUsers.map((u: any) => u.email),
+                    ...((audit.summaryEmailList || []) as string[]),
+                    ...summaryAdminUsers.map((u: any) => u.email),
+                    ...notifyAdminUsers.map((u: any) => u.email),
+                ]
+                    .map((email) => email.trim().toLowerCase())
+                    .filter(Boolean)
+            )
+        );
+
+        if (recipients.length === 0) {
+            return { success: 0, failed: 0, recipients: 0 };
+        }
+
+        const baseUrl = process.env.BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+        const auditUrl = `${baseUrl}/audits/${auditId}`;
+        const auditDate = new Date(audit.onDate).toLocaleDateString('hu-HU', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+        });
+
+        const results: AuditResultSummaryData['results'] = (audit.result || []).map((r: any) => {
+            const imageIds = Array.isArray(r.images) ? r.images : (r.image ? [r.image] : []);
+            const imageUrls = imageIds.map((id: any) => `${baseUrl}/api/upload/${id.toString()}`);
+            const resultValue = r.result !== undefined ? r.result : r.pass;
+            return {
+                checkText: checkMap.get(r.check?.toString()) || 'Ismeretlen ellenőrzési pont',
+                resultLabel: resultValue === true ? 'OK' : resultValue === false ? 'NOK' : 'N/A',
+                comment: r.comment || undefined,
+                imageUrls,
+            };
+        });
+
+        const summaryData: AuditResultSummaryData = {
+            siteName: site.name,
+            auditDate,
+            participants: participants.map((p: any) => p.fullName),
+            auditUrl,
+            results,
+        };
+
+        let success = 0;
+        let failed = 0;
+        for (const recipientEmail of recipients) {
+            const result = await sendEmail({
+                to: recipientEmail,
+                subject: `Audit összefoglaló: ${site.name} - ${auditDate}`,
+                html: renderAuditResultSummaryEmail(summaryData),
+                text: renderAuditResultSummaryText(summaryData),
+            });
+            if (result.success) {
+                success++;
+            } else {
+                failed++;
+            }
+        }
+
+        return { success, failed, recipients: recipients.length };
+    } catch (error) {
+        console.error('[AUDIT RESULT EMAIL ERROR]', error);
+        return { success: 0, failed: 0, recipients: 0 };
+    }
 }
 
 

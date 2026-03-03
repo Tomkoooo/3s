@@ -5,6 +5,10 @@ export type ISite = {
     children?: ObjectId[];  // Több child lehet
     checks?: ObjectId[];    // Checks is optional
     parentId?: ObjectId;    // Parent site reference a könnyebb queryért
+    siteLeaders?: ObjectId[];
+    resultEmailList?: string[];
+    resultAdminRecipients?: ObjectId[];
+    notifyAdminsOnResult?: boolean;
     level: number;          // 0, 1, 2 (3 szint)
 }
 
@@ -27,6 +31,28 @@ const siteSchema = new Schema<ISite>({
         type: Schema.Types.ObjectId,
         ref: "Site",
         required: false,
+    },
+    siteLeaders: {
+        type: [Schema.Types.ObjectId],
+        ref: "User",
+        required: false,
+        default: [],
+    },
+    resultEmailList: {
+        type: [String],
+        required: false,
+        default: [],
+    },
+    resultAdminRecipients: {
+        type: [Schema.Types.ObjectId],
+        ref: "User",
+        required: false,
+        default: [],
+    },
+    notifyAdminsOnResult: {
+        type: Boolean,
+        required: false,
+        default: false,
     },
     level: {
         type: Number,

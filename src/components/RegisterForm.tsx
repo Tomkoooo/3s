@@ -65,7 +65,7 @@ export function RegisterForm({
                             <SelectValue placeholder="Válassz szerepkört" />
                         </SelectTrigger>
                         <SelectContent>
-                            {["admin", "auditor", "fixer"].map((role) => (
+                            {["admin", "auditor", "fixer", "site_leader"].map((role) => (
                                 <SelectItem key={role} value={role}>{getRoleTranslation(role)}</SelectItem>
                             ))}
                         </SelectContent>
