@@ -45,11 +45,12 @@ export default async function AdminAuditDetailsPage({
     let passedChecks = 0;
     
     if (audit.result && Array.isArray(audit.result)) {
-        const answered = audit.result.filter((r: any) => {
+        const scoringResults = audit.result.filter((r: any) => r.check?.scoring !== false);
+        const answered = scoringResults.filter((r: any) => {
             const val = r.result !== undefined ? r.result : r.pass;
             return val !== undefined && val !== null;
         });
-        totalChecks = audit.result.length;
+        totalChecks = scoringResults.length;
         passedChecks = answered.filter((r: any) => {
              const val = r.result !== undefined ? r.result : r.pass;
              return val === true;
@@ -223,7 +224,13 @@ export default async function AdminAuditDetailsPage({
                                                         {result.check.description}
                                                     </p>
                                                 )}
-                                                {result.pass !== undefined && (
+                                                {result.check?.answerType === 'info_text' ? (
+                                                    result.valueText ? (
+                                                        <p className="text-sm text-muted-foreground mt-2">
+                                                            Rögzített érték: {result.valueText}
+                                                        </p>
+                                                    ) : null
+                                                ) : result.pass !== undefined && (
                                                     <div className="mt-2">
                                                         <span
                                                             className={`inline-flex items-center px-2 py-1 rounded text-sm font-medium ${

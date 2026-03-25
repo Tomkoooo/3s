@@ -33,15 +33,20 @@ export default function AuditExecutionClient({ audit }: AuditExecutionClientProp
     const initialResults = audit.result
         ?.filter((r: any) => {
             const resultValue = r.result !== undefined ? r.result : r.pass;
+            const isInfo = r.check?.answerType === 'info_text';
+            if (isInfo) {
+                return r.valueText !== undefined && r.valueText !== null && String(r.valueText).length > 0;
+            }
             return resultValue !== undefined && resultValue !== null;
         })
         .map((r: any) => {
             const resultValue = r.result !== undefined ? r.result : r.pass;
             return {
                 checkId: r.check._id || r.check, // Ez a Check definíció ID-ja
-                pass: resultValue,
+                pass: r.check?.answerType === 'info_text' ? undefined : resultValue,
                 comment: r.comment,
                 imageIds: r.images || (r.image ? [r.image] : []),
+                valueText: r.valueText,
             };
         }) || [];
     
@@ -57,9 +62,10 @@ export default function AuditExecutionClient({ audit }: AuditExecutionClientProp
 
     const [results, setResults] = useState<Array<{
         checkId: string;
-        pass: boolean;
+        pass?: boolean;
         comment?: string;
         imageIds?: string[];
+        valueText?: string;
     }>>(initialResults);
     
     // LocalStorage key
@@ -119,22 +125,26 @@ export default function AuditExecutionClient({ audit }: AuditExecutionClientProp
         }
     };
 
-    const handleCheckResult = async (checkId: string, pass: boolean, comment?: string, imageIds?: string[]) => {
+    const handleCheckResult = async (
+        checkId: string,
+        data: { pass?: boolean; valueText?: string; comment?: string; imageIds?: string[] }
+    ) => {
         // Optimistic update
         setResults(prev => {
             const existing = prev.find(r => r.checkId === checkId);
             if (existing) {
-                return prev.map(r => r.checkId === checkId ? { checkId, pass, comment, imageIds } : r);
+                return prev.map(r => r.checkId === checkId ? { checkId, ...data } : r);
             }
-            return [...prev, { checkId, pass, comment, imageIds }];
+            return [...prev, { checkId, ...data }];
         });
 
         // Auto-save to backend
         // Nem várunk a válaszra (fire and forget jellegű, de toast-olhatnánk hibát)
         await updateAuditProgressAction(audit._id, checkId, {
-            pass,
-            comment,
-            imageIds
+            pass: data.pass,
+            valueText: data.valueText,
+            comment: data.comment,
+            imageIds: data.imageIds
         });
 
         // Auto-advance ha OK (NOK esetén marad, mert komment + kép kell)
@@ -263,6 +273,8 @@ export default function AuditExecutionClient({ audit }: AuditExecutionClientProp
                         text: currentCheckDef.text,
                         description: currentCheckDef.description,
                         referenceImage: currentCheckDef.referenceImage,
+                        referenceImages: currentCheckDef.referenceImages,
+                        answerType: currentCheckDef.answerType,
                     }}
                     result={currentResult}
                     onResult={handleCheckResult}

@@ -6,6 +6,7 @@ import User from "@/lib/db/models/User";
 import { siteSchema } from "@/lib/validation";
 import { getCurrentUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { ObjectId } from "mongodb";
 
 export type SiteFormState = {
     success: boolean;
@@ -121,7 +122,15 @@ export async function updateSiteAction(
             return { success: false, message: 'Nincs jogosultságod ehhez a művelethez' };
         }
 
+        if (!siteId || !ObjectId.isValid(siteId)) {
+            return { success: false, message: 'Érvénytelen terület azonosító' };
+        }
+
         const rawName = formData.get('name');
+        const rawSiteLeaders = formData.getAll('siteLeaders').map((v) => String(v)).filter(Boolean);
+        const rawResultEmailList = formData.get('resultEmailList')?.toString() || '';
+        const rawResultAdminRecipients = formData.getAll('resultAdminRecipients').map((v) => String(v)).filter(Boolean);
+        const rawNotifyAdminsOnResult = formData.get('notifyAdminsOnResult')?.toString() === 'true';
 
         if (!rawName || typeof rawName !== 'string' || rawName.trim().length === 0) {
             return {
@@ -138,12 +147,19 @@ export async function updateSiteAction(
         }
 
         site.name = rawName.trim();
-        site.siteLeaders = rawSiteLeaders as any;
+        site.siteLeaders = rawSiteLeaders
+            .filter((id) => ObjectId.isValid(id))
+            .map((id) => new ObjectId(id)) as any;
         site.resultEmailList = rawResultEmailList
             .split(/[,\n;]/)
             .map((email) => email.trim().toLowerCase())
-            .filter(Boolean);
-        site.resultAdminRecipients = rawResultAdminRecipients as any;
+            .filter((email) => {
+                if (!email) return false;
+                return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+            });
+        site.resultAdminRecipients = rawResultAdminRecipients
+            .filter((id) => ObjectId.isValid(id))
+            .map((id) => new ObjectId(id)) as any;
         site.notifyAdminsOnResult = rawNotifyAdminsOnResult;
         await site.save();
 

@@ -32,6 +32,7 @@ export default async function EditCheckPage({
                         initialText={check.text}
                         initialDescription={check.description || ''}
                         initialReferenceImages={check.referenceImages}
+                        initialAnswerType={check.answerType}
                         mode="update"
                     />
                 </CardContent>

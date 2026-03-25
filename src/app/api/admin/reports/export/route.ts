@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import Audit from "@/lib/db/models/Audit";
 import Site from "@/lib/db/models/Site";
+import Check from "@/lib/db/models/Check";
 import { getCurrentUser } from "@/lib/auth";
 import { ObjectId } from "mongodb";
 
@@ -63,6 +64,20 @@ export async function GET(request: NextRequest) {
         .sort({ onDate: -1 })
         .lean();
 
+        const allCheckIds = new Set<string>();
+        for (const audit of audits as any[]) {
+            for (const r of (audit.result || [])) {
+                if (r?.check) allCheckIds.add(r.check.toString());
+            }
+        }
+        const checks = allCheckIds.size
+            ? await Check.find({ _id: { $in: Array.from(allCheckIds).map((id) => new ObjectId(id)) } })
+                  .select("_id scoring answerType")
+                  .lean()
+                  .exec()
+            : [];
+        const checkMap = new Map(checks.map((c: any) => [c._id.toString(), c]));
+
         // Generate CSV
         const header = ['Audit ID', 'Terület', 'Dátum', 'Státusz', 'Auditorok', 'Összes pont', 'Megfelelt', 'Eredmény %'];
         const rows = [header.join(';')];
@@ -83,13 +98,17 @@ export async function GET(request: NextRequest) {
             let passedChecks = 0;
             
             if (audit.result && Array.isArray(audit.result)) {
+                const scoringResults = audit.result.filter((r: any) => {
+                    const c = checkMap.get(r.check?.toString());
+                    return c ? c.scoring !== false : true;
+                });
                 // Count only answered checks
-                const answered = audit.result.filter((r: any) => {
+                const answered = scoringResults.filter((r: any) => {
                     const val = r.result !== undefined ? r.result : r.pass;
                     return val !== undefined && val !== null;
                 });
                 
-                totalChecks = audit.result.length; // Or usually we count total checks defined for site? Audit result represents all checks.
+                totalChecks = scoringResults.length;
                 passedChecks = answered.filter((r: any) => {
                      const val = r.result !== undefined ? r.result : r.pass;
                      return val === true;

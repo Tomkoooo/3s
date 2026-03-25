@@ -7,6 +7,7 @@ import Break, { BreakDocument } from "@/lib/db/models/Break";
 import { SerializableUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { resolveAuditConflicts } from "@/lib/audit-scheduler";
+import { ObjectId } from "mongodb";
 
 // Helper function to parse and validate form data
 function parseBreakFormData(formData: FormData) {
@@ -284,6 +285,81 @@ export async function createBreakForUserAction(
         }
 
         return { success: true };
+    } catch (error) {
+        return {
+            success: false,
+            message: error instanceof Error ? error.message : "Ismeretlen hiba történt",
+        };
+    }
+}
+
+export async function createBreaksBulkAction(
+    _prevState: BreakFormState,
+    formData: FormData
+): Promise<BreakFormState> {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+        redirect("/login");
+    }
+
+    const adminCheck = checkAdminPermission(currentUser);
+    if (!adminCheck.success) {
+        return adminCheck;
+    }
+
+    const targetUserIds = (formData.getAll("targetUserIds") as string[])
+        .map((id) => String(id))
+        .filter((id) => ObjectId.isValid(id));
+
+    if (targetUserIds.length === 0) {
+        return { success: false, message: "Legalább egy felhasználó kiválasztása kötelező." };
+    }
+
+    const parseResult = parseBreakFormData(formData);
+    if (!parseResult.success) {
+        return parseResult;
+    }
+
+    const { start, end, reason } = parseResult.data;
+
+    try {
+        await connectDB();
+
+        const existing = await Break.find({
+            userId: { $in: targetUserIds.map((id) => new ObjectId(id)) },
+            start,
+            end,
+        })
+            .select("userId")
+            .lean()
+            .exec();
+
+        const existingUserIds = new Set(existing.map((b: any) => b.userId.toString()));
+        const toCreate = targetUserIds.filter((id) => !existingUserIds.has(id));
+
+        if (toCreate.length > 0) {
+            await Break.insertMany(
+                toCreate.map((userId) => ({ userId, start, end, reason })),
+                { ordered: false }
+            );
+
+            await Promise.allSettled(
+                toCreate.map((userId) =>
+                    resolveAuditConflicts(userId, new Date(start), new Date(end || start)).catch((confError) => {
+                        console.error("Error resolving conflicts:", confError);
+                        return { resolved: 0, failed: 0, logs: [] };
+                    })
+                )
+            );
+        }
+
+        return {
+            success: true,
+            message:
+                toCreate.length === targetUserIds.length
+                    ? `Szünet rögzítve ${toCreate.length} felhasználónak.`
+                    : `Szünet rögzítve ${toCreate.length} felhasználónak, ${existingUserIds.size} kihagyva (már létezett).`,
+        };
     } catch (error) {
         return {
             success: false,

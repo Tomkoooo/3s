@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { X, Share2, Plus } from 'lucide-react'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { brand } from '@/lib/brand'
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[]
@@ -113,7 +114,7 @@ export function PWAInstallPrompt() {
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1">
           <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">
-            3SGP Alkalmazás Telepítése
+            {brand.appShortName} Alkalmazás Telepítése
           </h3>
           
           {showIOSGuide && isIOS() ? (

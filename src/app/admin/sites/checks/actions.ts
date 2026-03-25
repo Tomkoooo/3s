@@ -17,6 +17,15 @@ export type CheckFormState = {
     };
 };
 
+function parseAnswerType(formData: FormData): { answerType: 'ok_nok' | 'info_text'; scoring: boolean } {
+    const raw = (formData.get('answerType') || 'ok_nok').toString();
+    const normalized = raw.trim().toLowerCase();
+    if (normalized === 'info_text') {
+        return { answerType: 'info_text', scoring: false };
+    }
+    return { answerType: 'ok_nok', scoring: true };
+}
+
 /**
  * Új ellenőrzési pont létrehozása
  */
@@ -36,6 +45,7 @@ export async function createCheckAction(
         const rawDescription = formData.get('description');
         const rawReferenceImage = formData.get('referenceImage');
         const rawReferenceImages = formData.get('referenceImages');
+        const { answerType, scoring } = parseAnswerType(formData);
 
         // Parse referenceImages if provided (comma-separated string of IDs)
         let referenceImagesArray: string[] = [];
@@ -82,6 +92,8 @@ export async function createCheckAction(
             description: description || null,
             referenceImage: referenceImage || null,
             referenceImages: referenceImagesArray.length > 0 ? referenceImagesArray : undefined,
+            answerType,
+            scoring,
         });
 
         // Check hozzáadása a site-hoz
@@ -118,6 +130,7 @@ export async function updateCheckAction(
         const rawText = formData.get('text');
         const rawDescription = formData.get('description');
         const rawReferenceImages = formData.get('referenceImages');
+        const { answerType, scoring } = parseAnswerType(formData);
 
         // Parse referenceImages if provided (comma-separated string of IDs)
         let referenceImagesArray: string[] | undefined = undefined;
@@ -155,6 +168,8 @@ export async function updateCheckAction(
         if (referenceImagesArray !== undefined) {
             check.referenceImages = referenceImagesArray.length > 0 ? referenceImagesArray : undefined;
         }
+        check.answerType = answerType;
+        check.scoring = scoring;
         await check.save();
 
         revalidatePath('/admin/sites');
@@ -247,6 +262,8 @@ export async function getChecksBySiteId(siteId: string) {
             description: check.description || null,
             referenceImage: check.referenceImage?.toString() || null,
             referenceImages: check.referenceImages?.map((id: any) => id.toString()) || [],
+            answerType: check.answerType || 'ok_nok',
+            scoring: check.scoring !== false,
         }));
     } catch (error) {
         console.error('Get checks error:', error);
@@ -316,6 +333,8 @@ export async function getCheckById(checkId: string) {
             description: checkData.description || null,
             referenceImage: checkData.referenceImage?.toString() || null,
             referenceImages: checkData.referenceImages?.map((id: any) => id.toString()) || [],
+            answerType: checkData.answerType || 'ok_nok',
+            scoring: checkData.scoring !== false,
         };
     } catch (error) {
         console.error('Get check by id error:', error);

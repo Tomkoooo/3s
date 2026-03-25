@@ -65,6 +65,11 @@ export default async function AdminBreaksPage() {
                         Új szünet
                     </Link>
                 </Button>
+                <Button asChild variant="outline">
+                    <Link href="/admin/breaks/bulk">
+                        Tömeges szünet
+                    </Link>
+                </Button>
             </div>
 
             <Card>

@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { toast } from "sonner";
 import MultiImageUpload from "./MultiImageUpload";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type CheckFormProps = {
     siteId: string;
@@ -17,6 +18,7 @@ type CheckFormProps = {
     initialText?: string;
     initialDescription?: string;
     initialReferenceImages?: string[];
+    initialAnswerType?: 'ok_nok' | 'info_text';
     mode?: 'create' | 'update';
 };
 
@@ -26,12 +28,14 @@ export default function CheckForm({
     initialText = '', 
     initialDescription = '',
     initialReferenceImages = [],
+    initialAnswerType = 'ok_nok',
     mode = 'create' 
 }: CheckFormProps) {
     const router = useRouter();
     const formRef = useRef<HTMLFormElement>(null);
     const [referenceImageIds, setReferenceImageIds] = useState<string[]>(initialReferenceImages);
     const [shouldAddAnother, setShouldAddAnother] = useState(false);
+    const [isInfoCheck, setIsInfoCheck] = useState(initialAnswerType === 'info_text');
     
     const initialState: CheckFormState = { success: false };
     
@@ -67,6 +71,7 @@ export default function CheckForm({
     return (
         <form ref={formRef} action={formAction} className="flex flex-col gap-4">
             <input type="hidden" name="referenceImages" value={referenceImageIds.join(',')} />
+            <input type="hidden" name="answerType" value={isInfoCheck ? 'info_text' : 'ok_nok'} />
             
             <div className="flex flex-col gap-2">
                 <Label htmlFor="text">Ellenőrzési pont címe</Label>
@@ -82,6 +87,15 @@ export default function CheckForm({
                     <p className="text-sm text-red-600">{state.fieldErrors.text[0]}</p>
                 )}
             </div>
+
+            <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                    checked={isInfoCheck}
+                    onCheckedChange={(checked) => setIsInfoCheck(Boolean(checked))}
+                    disabled={isPending}
+                />
+                <span>Információs (nem pontozott) ellenőrzési pont</span>
+            </label>
 
             <div className="flex flex-col gap-2">
                 <Label htmlFor="description">Részletes leírás (opcionális)</Label>

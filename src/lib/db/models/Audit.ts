@@ -4,6 +4,7 @@ export type IAuditResult = {
     check: ObjectId;
     result: boolean;
     comment?: string;
+    valueText?: string;
     image?: ObjectId; // Deprecated
     images?: ObjectId[];
     durationMinutes?: number;
@@ -27,6 +28,10 @@ export const auditResultSchema = new Schema<IAuditResult>({
     comment: {
         type: String,
         required: function(this: any) { return this.result === false; } // Kötelező ha NOK
+    },
+    valueText: {
+        type: String,
+        required: false,
     },
     image: {
         type: Schema.Types.ObjectId, // GridFS ID

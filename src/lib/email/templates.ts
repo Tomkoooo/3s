@@ -4,6 +4,8 @@
  * HTML email templates for audit notifications
  */
 
+import { brand } from "@/lib/brand";
+
 /**
  * Audit notification email data
  */
@@ -54,7 +56,7 @@ function emailLayout(content: string): string {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3S Ellenőrző Rendszer</title>
+    <title>${brand.emailFromSystemLabel}</title>
     <style>
         body {
             margin: 0;
@@ -182,12 +184,12 @@ function emailLayout(content: string): string {
 <body>
     <div class="container">
         <div class="header">
-            <h1>3S Ellenőrző Rendszer</h1>
-            <p>General-Plastics</p>
+            <h1>${brand.emailFromSystemLabel}</h1>
+            <p>${brand.companyName}</p>
         </div>
         ${content}
         <div class="footer">
-            <p>Ez egy automatikus értesítő email a 3S Ellenőrző Rendszerből.</p>
+            <p>Ez egy automatikus értesítő email a ${brand.emailFromSystemLabel}ből.</p>
             <p>Kérdés esetén vedd fel a kapcsolatot a rendszergazdával.</p>
         </div>
     </div>
@@ -341,7 +343,7 @@ export function renderAuditNotificationText(data: AuditNotificationData): string
             : '';
 
     return `
-3S Ellenőrző Rendszer
+${brand.emailFromSystemLabel}
 Új ellenőrzés kijelölve
 
 Kedves ${data.recipientName}!
@@ -360,7 +362,7 @@ Fontos: Az ellenőrzés során minden pontot ki kell töltened.
 NOK esetén komment és kép feltöltése kötelező.
 
 ---
-Ez egy automatikus értesítő email a 3S Ellenőrző Rendszerből.
+Ez egy automatikus értesítő email a ${brand.emailFromSystemLabel}ből.
     `.trim();
 }
 
@@ -383,7 +385,7 @@ export function renderDailySummaryText(data: DailySummaryData): string {
             : '';
 
     return `
-3S Ellenőrző Rendszer
+${brand.emailFromSystemLabel}
 Napi ellenőrzés összefoglaló
 
 Kedves ${data.recipientName}!
@@ -395,7 +397,7 @@ ${tomorrowSection}
 Jó munkát kívánunk az ellenőrzésekhez!
 
 ---
-Ez egy automatikus értesítő email a 3S Ellenőrző Rendszerből.
+Ez egy automatikus értesítő email a ${brand.emailFromSystemLabel}ből.
     `.trim();
 }
 
@@ -414,10 +416,10 @@ export function renderInviteEmail(data: InviteEmailData): string {
 
     const content = `
         <div class="content">
-            <h2>Meghívó a 3S Ellenőrző Rendszerbe</h2>
+            <h2>Meghívó a ${brand.emailFromSystemLabel}be</h2>
             <p>Üdvözlünk!</p>
             <p>
-                Meghívtak a 3S Ellenőrző Rendszer használatára <strong>${roleName}</strong> szerepkörben.
+                Meghívtak a ${brand.emailFromSystemLabel} használatára <strong>${roleName}</strong> szerepkörben.
             </p>
             
             ${data.comment ? `
@@ -468,12 +470,12 @@ export function renderInviteText(data: InviteEmailData): string {
     const roleName = roleNames[data.role] || data.role;
 
     return `
-3S Ellenőrző Rendszer
+${brand.emailFromSystemLabel}
 Meghívó a rendszerbe
 
 Üdvözlünk!
 
-Meghívtak a 3S Ellenőrző Rendszer használatára ${roleName} szerepkörben.
+Meghívtak a ${brand.emailFromSystemLabel} használatára ${roleName} szerepkörben.
 
 Szerepkör: ${roleName}
 Lejárat: ${new Date(data.expiresAt).toLocaleString('hu-HU')}
@@ -485,7 +487,7 @@ ${data.inviteUrl}
 Ezt a linket csak egyszer tudod felhasználni.
 
 ---
-Ez egy automatikus értesítő email a 3S Ellenőrző Rendszerből.
+Ez egy automatikus értesítő email a ${brand.emailFromSystemLabel}ből.
     `.trim();
 }
 
@@ -565,7 +567,7 @@ export function renderAuditResultSummaryText(data: AuditResultSummaryData): stri
         .join('\n');
 
     return `
-3S Ellenőrző Rendszer
+${brand.emailFromSystemLabel}
 Ellenőrzési összefoglaló
 
 Terület: ${data.siteName}

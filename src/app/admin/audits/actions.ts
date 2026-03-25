@@ -8,6 +8,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { ObjectId } from "mongodb";
 import { sendAuditNotificationToAll } from "@/lib/email/audit-email";
+import { sendAuditNotificationEmail } from "@/lib/email/audit-email";
 
 // Lean típusok a Mongoose queryhez
 type LeanSite = {
@@ -27,6 +28,8 @@ type LeanCheck = {
     _id: any;
     text: string;
     referenceImage?: any;
+    answerType?: any;
+    scoring?: any;
 };
 
 type LeanAuditResult = {
@@ -420,10 +423,13 @@ export async function getAuditById(auditId: string) {
                     text: r.check.text,
                     description: r.check.description || null,
                     referenceImage: r.check.referenceImage?.toString() || null,
+                    answerType: (r.check.answerType || 'ok_nok') as any,
+                    scoring: r.check.scoring !== false,
                 } : null,
                 pass: r.result !== undefined ? r.result : r.pass, // Map result to pass for compatibility
                 comment: r.comment,
                 image: r.image?.toString(),
+                valueText: r.valueText || null,
             })) || [],
             status,
         };
@@ -467,6 +473,9 @@ export async function updateAuditAction(
             return { success: false, message: 'Elindított ellenőrzést nem lehet módosítani' };
         }
 
+        const previousParticipantIds = new Set((audit.participants || []).map((id: any) => id.toString()));
+        const previousOnDateIso = audit.onDate instanceof Date ? audit.onDate.toISOString() : new Date(audit.onDate as any).toISOString();
+
         // Frissítés
         if (onDate) {
             const selectedDate = new Date(onDate);
@@ -479,8 +488,9 @@ export async function updateAuditAction(
             audit.onDate = selectedDate;
         }
 
+        let validParticipants: string[] | null = null;
         if (participantIds && participantIds.length > 0) {
-            const validParticipants = participantIds.filter((id) => ObjectId.isValid(id));
+            validParticipants = participantIds.filter((id) => ObjectId.isValid(id));
             if (validParticipants.length === 0) {
                 return { success: false, message: 'Érvényes auditor-ok kiválasztása kötelező' };
             }
@@ -488,6 +498,51 @@ export async function updateAuditAction(
         }
 
         await audit.save();
+
+        // Email notification for newly added participants (fire-and-forget)
+        try {
+            const currentParticipantIds = new Set<string>((audit.participants || []).map((id: any) => id.toString()));
+            const currentParticipantIdList = Array.from(currentParticipantIds);
+            const addedParticipantIds: string[] = currentParticipantIdList.filter((id) => !previousParticipantIds.has(id));
+
+            const onDateIso = audit.onDate instanceof Date ? audit.onDate.toISOString() : new Date(audit.onDate as any).toISOString();
+            const dateChanged = previousOnDateIso !== onDateIso;
+
+            if (addedParticipantIds.length > 0) {
+                const [site, participants] = await Promise.all([
+                    Site.findById(audit.site).select('_id name').lean(),
+                    User.find({ _id: { $in: currentParticipantIdList.map((id) => new ObjectId(id)) } })
+                        .select('_id fullName email')
+                        .lean(),
+                ]);
+
+                if (site && participants && participants.length > 0) {
+                    const auditData = {
+                        site: { _id: (site as any)._id.toString(), name: (site as any).name },
+                        onDate: new Date(audit.onDate as any),
+                        participants: participants.map((p: any) => ({
+                            _id: p._id.toString(),
+                            fullName: p.fullName,
+                            email: p.email,
+                        })),
+                        checkCount: Array.isArray((audit as any).result) ? (audit as any).result.length : 0,
+                    };
+
+                    await Promise.allSettled(
+                        addedParticipantIds.map((participantId) =>
+                            sendAuditNotificationEmail(auditId, participantId, auditData).catch((error) => {
+                                console.error('[EMAIL] Failed to send added-participant notification:', error);
+                                return { success: false };
+                            })
+                        )
+                    );
+                }
+            } else if (dateChanged) {
+                // Optional: date-change emails could be implemented here later
+            }
+        } catch (error) {
+            console.error('[EMAIL] Failed to process audit update notifications:', error);
+        }
 
         revalidatePath('/admin/audits');
         revalidatePath(`/admin/audits/${auditId}`);

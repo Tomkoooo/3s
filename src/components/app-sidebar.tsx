@@ -32,6 +32,7 @@ import { redirect } from "next/navigation"
 import { Skeleton } from "./ui/skeleton"
 import { getInitials, getRoleTranslation } from "@/lib/utils"
 import { useCallback } from "react";
+import { brand } from "@/lib/brand";
 
 export const MenuItem = ({ href, icon, label, onClick }: { href: string, icon: React.ReactNode, label: string, onClick?: () => void }) => {
     return (
@@ -58,8 +59,8 @@ export function AppSidebar() {
         <Sidebar className="max-w-full">
             <SidebarHeader className="p-4 flex flex-row items-center gap-2">
                 <div className="flex flex-col gap-0.5">
-                    <span className="font-medium truncate leading-none">General-Plastics</span>
-                    <span className="text-xs text-muted-foreground truncate">3S Ellenőrző Rendszer</span>
+                    <span className="font-medium truncate leading-none">{brand.companyName}</span>
+                    <span className="text-xs text-muted-foreground truncate">{brand.systemNameHu}</span>
                 </div>
             </SidebarHeader>
             <SidebarContent>

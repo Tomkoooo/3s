@@ -1,6 +1,7 @@
 import Container from "@/components/container";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DownloadCloudIcon, InfoIcon } from "lucide-react";
+import { brand } from "@/lib/brand";
 
 export default function InstallAppPage() {
     return (
@@ -20,7 +21,7 @@ export default function InstallAppPage() {
                 </CardHeader>
                 <CardContent>
                     <p className="text-muted-foreground leading-relaxed">
-                        A 3S Ellenőrző Rendszer egy modern webalkalmazás (PWA), amely úgy tud működni az eszközödön, mint egy letölthető natív alkalmazás. Mivel nem kell az App Store-ból vagy a Google Play áruházból letölteni, így azonnal, az alábbi egyszerű lépéseket követve hozzáadhatod a kezdőképernyődhöz, és offline módban, teljesképernyősként élvezheted a használatát.
+                        A {brand.systemNameHu} egy modern webalkalmazás (PWA), amely úgy tud működni az eszközödön, mint egy letölthető natív alkalmazás. Mivel nem kell az App Store-ból vagy a Google Play áruházból letölteni, így azonnal, az alábbi egyszerű lépéseket követve hozzáadhatod a kezdőképernyődhöz, és offline módban, teljesképernyősként élvezheted a használatát.
                     </p>
                 </CardContent>
             </Card>

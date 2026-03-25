@@ -2,6 +2,7 @@
 
 import { connectDB } from "@/lib/db";
 import Audit from "@/lib/db/models/Audit";
+import Check from "@/lib/db/models/Check";
 import { getCurrentUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { sendAuditResultSummaryForCompletedAudit } from "@/lib/email/audit-email";
@@ -62,7 +63,8 @@ export async function submitAuditResultAction(
     auditId: string,
     results: Array<{
         checkId: string;
-        pass: boolean;
+        pass?: boolean;
+        valueText?: string;
         comment?: string;
         imageIds?: string[];
     }>
@@ -91,13 +93,30 @@ export async function submitAuditResultAction(
             return { success: false, message: 'Ez az ellenőrzés nincs folyamatban állapotban' };
         }
 
-        // Validáció: minden check ki van-e töltve
+        const checkIds = audit.result.map((r: any) => r.check.toString());
+        const checks = await Check.find({ _id: { $in: checkIds } }).select("_id answerType").lean().exec();
+        const checkMap = new Map(checks.map((c: any) => [c._id.toString(), c]));
+
+        // Validáció: minden check ki van-e töltve (type-aware)
         if (results.length !== audit.result.length) {
             return { success: false, message: 'Nem minden ellenőrzési pont van kitöltve' };
         }
 
-        // NOK-ok validálása (komment kötelező)
-        const invalidNok = results.find(r => !r.pass && !r.comment);
+        const missing = results.find((r) => {
+            const check = checkMap.get(r.checkId);
+            if (check?.answerType === 'info_text') return false; // valueText is optional by design
+            return r.pass === undefined || r.pass === null;
+        });
+        if (missing) {
+            return { success: false, message: 'Nem minden ellenőrzési pont van kitöltve' };
+        }
+
+        // NOK-ok validálása (komment kötelező) - only for scored OK/NOK checks
+        const invalidNok = results.find((r) => {
+            const check = checkMap.get(r.checkId);
+            if (check?.answerType === 'info_text') return false;
+            return r.pass === false && !r.comment;
+        });
         if (invalidNok) {
             return { success: false, message: 'NOK esetén a komment megadása kötelező' };
         }
@@ -106,15 +125,25 @@ export async function submitAuditResultAction(
         for (const result of results) {
             const auditResult = audit.result.find((r: any) => r.check.toString() === result.checkId);
             if (auditResult) {
-                auditResult.result = result.pass; // Map pass to result field
-                auditResult.comment = result.comment || undefined;
-                // Support both legacy single image and new array
-                if (result.imageIds && result.imageIds.length > 0) {
-                    auditResult.images = result.imageIds;
-                    auditResult.image = result.imageIds[0]; // Backward compatibility
-                } else {
+                const check = checkMap.get(result.checkId);
+                if (check?.answerType === 'info_text') {
+                    auditResult.valueText = result.valueText || undefined;
+                    auditResult.result = undefined as any;
+                    auditResult.comment = undefined;
                     auditResult.images = [];
                     auditResult.image = undefined;
+                } else {
+                    auditResult.valueText = undefined;
+                    auditResult.result = result.pass as any; // Map pass to result field
+                    auditResult.comment = result.comment || undefined;
+                    // Support both legacy single image and new array
+                    if (result.imageIds && result.imageIds.length > 0) {
+                        auditResult.images = result.imageIds;
+                        auditResult.image = result.imageIds[0]; // Backward compatibility
+                    } else {
+                        auditResult.images = [];
+                        auditResult.image = undefined;
+                    }
                 }
             }
         }
@@ -148,7 +177,8 @@ export async function updateAuditProgressAction(
     auditId: string,
     checkId: string,
     data: {
-        pass: boolean;
+        pass?: boolean;
+        valueText?: string;
         comment?: string;
         imageIds?: string[];
     }
@@ -182,16 +212,26 @@ export async function updateAuditProgressAction(
             return { success: false, message: 'Érvénytelen ellenőrzési pont' };
         }
 
-        // Adatok frissítése
-        auditResult.result = data.pass;
-        auditResult.comment = data.comment || undefined;
-        
-        if (data.imageIds && data.imageIds.length > 0) {
-            auditResult.images = data.imageIds;
-            auditResult.image = data.imageIds[0]; // Backward compatibility
-        } else {
+        const check = await Check.findById(checkId).select("_id answerType").lean().exec();
+        if (check?.answerType === 'info_text') {
+            auditResult.valueText = data.valueText || undefined;
+            auditResult.result = undefined as any;
+            auditResult.comment = undefined;
             auditResult.images = [];
             auditResult.image = undefined;
+        } else {
+            // Adatok frissítése
+            auditResult.valueText = undefined;
+            auditResult.result = data.pass as any;
+            auditResult.comment = data.comment || undefined;
+            
+            if (data.imageIds && data.imageIds.length > 0) {
+                auditResult.images = data.imageIds;
+                auditResult.image = data.imageIds[0]; // Backward compatibility
+            } else {
+                auditResult.images = [];
+                auditResult.image = undefined;
+            }
         }
 
         // Státusz frissítése in_progress-re ha még scheduled volt

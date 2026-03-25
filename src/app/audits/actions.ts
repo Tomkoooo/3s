@@ -25,6 +25,9 @@ type LeanCheck = {
     _id: any;
     text: string;
     referenceImage?: any;
+    referenceImages?: any[];
+    answerType?: any;
+    scoring?: any;
 };
 
 type LeanAuditResult = {
@@ -283,10 +286,16 @@ export async function getMyAuditById(auditId: string) {
                     text: r.check.text,
                     description: r.check.description || null,
                     referenceImage: r.check.referenceImage?.toString() || null,
+                    referenceImages: Array.isArray(r.check.referenceImages)
+                        ? r.check.referenceImages.map((id: any) => id?.toString()).filter(Boolean)
+                        : [],
+                    answerType: (r.check.answerType || 'ok_nok') as any,
+                    scoring: r.check.scoring !== false,
                 } : null,
                 pass: r.result !== undefined ? r.result : r.pass, // Map result to pass for compatibility
                 comment: r.comment,
                 image: r.image?.toString(),
+                valueText: r.valueText || null,
             })) || [],
             status,
         };

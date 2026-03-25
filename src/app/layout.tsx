@@ -11,6 +11,7 @@ import { OfflineIndicator } from "@/components/offline-indicator"
 import { redirect } from "next/navigation";
 import { getCurrentUser, adminExists } from "@/lib/auth";
 import { headers } from "next/headers";
+import { brand } from "@/lib/brand";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,8 +24,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "3SGP - General Plastics Kft. 3S Ellenőrzó Rendszer",
-  description: "General Plastics Kft. 3S Ellenőrzó Rendszer - Break Management System",
+  title: brand.appLongName,
+  description: brand.description,
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.ico",
@@ -32,21 +33,21 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "3SGP",
+    title: brand.appShortName,
   },
   formatDetection: {
     telephone: false,
   },
   openGraph: {
     type: "website",
-    siteName: "3SGP",
-    title: "3SGP - General Plastics Kft. 3S Ellenőrzó Rendszer",
-    description: "General Plastics Kft. 3S Ellenőrzó Rendszer - Break Management System",
+    siteName: brand.appShortName,
+    title: brand.appLongName,
+    description: brand.description,
   },
   twitter: {
     card: "summary",
-    title: "3SGP - General Plastics Kft. 3S Ellenőrzó Rendszer",
-    description: "General Plastics Kft. 3S Ellenőrzó Rendszer - Break Management System",
+    title: brand.appLongName,
+    description: brand.description,
   },
 };
 
@@ -118,10 +119,10 @@ export default async function RootLayout({
   return (<>
     <html lang="hu">
       <head>
-        <meta name="application-name" content="3SGP" />
+        <meta name="application-name" content={brand.appShortName} />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="3SGP" />
+        <meta name="apple-mobile-web-app-title" content={brand.appShortName} />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="msapplication-config" content="/browserconfig.xml" />
         <meta name="msapplication-TileColor" content="#000000" />

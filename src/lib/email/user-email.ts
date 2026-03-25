@@ -10,6 +10,7 @@ import {
     renderInviteText,
     type InviteEmailData,
 } from './templates';
+import { brand } from '@/lib/brand';
 
 /**
  * Send invite email to a user
@@ -18,7 +19,7 @@ export async function sendInviteEmail(data: InviteEmailData): Promise<{ success:
     try {
         const result = await sendEmail({
             to: data.recipientEmail,
-            subject: 'Meghívó a 3S Ellenőrző Rendszerbe',
+            subject: `Meghívó a ${brand.emailFromSystemLabel}be`,
             html: renderInviteEmail(data),
             text: renderInviteText(data),
         });

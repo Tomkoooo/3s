@@ -5,6 +5,7 @@
  */
 
 import { createEvents, type EventAttributes, type DateArray } from 'ics';
+import { brand } from '@/lib/brand';
 
 /**
  * Audit event data for ICS generation
@@ -46,8 +47,8 @@ export function generateAuditIcs(auditData: AuditEventData): {
             title: auditData.title,
             description: auditData.description,
             location: auditData.location,
-            productId: '3s-gp/audit-system',
-            uid: `audit-${Date.now()}@3s-gp.com`,
+            productId: brand.ics.productId,
+            uid: `audit-${Date.now()}@${brand.ics.uidDomain}`,
             status: 'CONFIRMED',
         };
 
@@ -69,7 +70,7 @@ export function generateAuditIcs(auditData: AuditEventData): {
         // Add organizer
         if (auditData.organizerEmail) {
             event.organizer = {
-                name: 'Audit System',
+                name: brand.ics.organizerName,
                 email: auditData.organizerEmail,
             };
         }
@@ -124,8 +125,8 @@ export function generateMultipleAuditsIcs(auditsData: AuditEventData[]): {
                 title: auditData.title,
                 description: auditData.description,
                 location: auditData.location,
-                productId: '3s-gp/audit-system',
-                uid: `audit-${Date.now()}-${index}@3s-gp.com`,
+                productId: brand.ics.productId,
+                uid: `audit-${Date.now()}-${index}@${brand.ics.uidDomain}`,
                 status: 'CONFIRMED',
             };
 
@@ -144,7 +145,7 @@ export function generateMultipleAuditsIcs(auditsData: AuditEventData[]): {
 
             if (auditData.organizerEmail) {
                 event.organizer = {
-                    name: 'Audit System',
+                    name: brand.ics.organizerName,
                     email: auditData.organizerEmail,
                 };
             }

@@ -1,10 +1,11 @@
 import type { MetadataRoute } from 'next'
+import { brand } from '@/lib/brand'
 
 export async function GET() {
   return Response.json({
-    name: '3SGP - General Plastics Kft. 3S Ellenőrzó Rendszer',
-    short_name: '3SGP',
-    description: 'General Plastics Kft. 3S Ellenőrzó Rendszer - Break Management System',
+    name: brand.appLongName,
+    short_name: brand.appShortName,
+    description: brand.description,
     start_url: '/',
     display: 'standalone',
     orientation: 'portrait-primary',
